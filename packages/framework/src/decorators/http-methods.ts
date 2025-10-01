@@ -4,8 +4,7 @@ import { ROUTES_METADATA } from '../constants'
 import type { Constructor, RouteDefinition } from '../interfaces'
 
 function attachRoute(target: Constructor, route: RouteDefinition) {
-  const routes: RouteDefinition[] =
-    Reflect.getMetadata(ROUTES_METADATA, target) || []
+  const routes: RouteDefinition[] = Reflect.getMetadata(ROUTES_METADATA, target) || []
   Reflect.defineMetadata(ROUTES_METADATA, [...routes, route], target)
 }
 
@@ -30,6 +29,5 @@ export const Options = createRouteDecorator('OPTIONS')
 export const Head = createRouteDecorator('HEAD')
 
 export function getRoutesMetadata(target: Constructor): RouteDefinition[] {
-  return (Reflect.getMetadata(ROUTES_METADATA, target) ||
-    []) as RouteDefinition[]
+  return (Reflect.getMetadata(ROUTES_METADATA, target) || []) as RouteDefinition[]
 }

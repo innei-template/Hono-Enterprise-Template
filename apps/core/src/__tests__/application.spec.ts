@@ -21,8 +21,7 @@ describe('HonoHttpApplication integration', () => {
 
   beforeAll(async () => {
     app = await createAppFactory()
-    fetcher = (request: Request) =>
-      Promise.resolve(app.getInstance().fetch(request))
+    fetcher = (request: Request) => Promise.resolve(app.getInstance().fetch(request))
   })
 
   const json = async (response: Response) => ({

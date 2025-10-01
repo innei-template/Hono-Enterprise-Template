@@ -5,11 +5,7 @@ import type { Constructor, ModuleMetadata } from '../interfaces'
 
 export function Module(metadata: ModuleMetadata): ClassDecorator {
   return (target) => {
-    Reflect.defineMetadata(
-      MODULE_METADATA,
-      metadata,
-      target as unknown as Constructor,
-    )
+    Reflect.defineMetadata(MODULE_METADATA, metadata, target as unknown as Constructor)
   }
 }
 

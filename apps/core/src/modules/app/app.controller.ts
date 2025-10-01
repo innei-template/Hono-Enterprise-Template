@@ -32,18 +32,12 @@ export class AppController {
 
   @Get('/profiles/:id')
   @UseGuards(ApiKeyGuard)
-  async getProfile(
-    @Param('id', ParseIntPipe) id: number,
-    @Query('verbose') verbose?: string,
-  ) {
+  async getProfile(@Param('id', ParseIntPipe) id: number, @Query('verbose') verbose?: string) {
     return this.appService.getProfile(id, verbose === 'true')
   }
 
   @Get('/test/:id')
-  async test(
-    @Param('id', ParseIntPipe) id: number,
-    @Query('name') name?: string,
-  ) {
+  async test(@Param('id', ParseIntPipe) id: number, @Query('name') name?: string) {
     return {
       id,
       name,

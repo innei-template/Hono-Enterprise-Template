@@ -14,8 +14,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       })
     }
 
-    const error =
-      exception instanceof Error ? exception : new Error(String(exception))
+    const error = exception instanceof Error ? exception : new Error(String(exception))
     console.error('Unhandled exception caught by filter', error)
 
     return new Response(

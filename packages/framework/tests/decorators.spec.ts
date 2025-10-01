@@ -34,20 +34,8 @@ import {
   PIPES_METADATA,
   ROUTE_ARGS_METADATA,
 } from '../src/constants'
-import {
-  getEnhancerMetadata,
-  UseFilters,
-  UseGuards,
-  UseInterceptors,
-  UsePipes,
-} from '../src/decorators/enhancers'
-import type {
-  ArgumentsHost,
-  CanActivate,
-  ExceptionFilter,
-  NestInterceptor,
-  PipeTransform,
-} from '../src/interfaces'
+import { getEnhancerMetadata, UseFilters, UseGuards, UseInterceptors, UsePipes } from '../src/decorators/enhancers'
+import type { ArgumentsHost, CanActivate, ExceptionFilter, NestInterceptor, PipeTransform } from '../src/interfaces'
 import { createExecutionContext } from '../src/utils/execution-context'
 
 @Module({
@@ -129,31 +117,16 @@ describe('decorators and helpers', () => {
   it('provides defaults when controller metadata is missing', () => {
     class PlainController {}
 
-    const metadata = getControllerMetadata(
-      PlainController as unknown as typeof DemoController,
-    )
+    const metadata = getControllerMetadata(PlainController as unknown as typeof DemoController)
     expect(metadata.prefix).toBe('')
-    expect(
-      getRoutesMetadata(PlainController as unknown as typeof DemoController),
-    ).toEqual([])
+    expect(getRoutesMetadata(PlainController as unknown as typeof DemoController)).toEqual([])
   })
 
   it('tracks enhancers on classes and methods', () => {
     const classGuards = getEnhancerMetadata(GUARDS_METADATA, DemoController)
-    const classInterceptors = getEnhancerMetadata(
-      INTERCEPTORS_METADATA,
-      DemoController,
-    )
-    const methodPipes = getEnhancerMetadata(
-      PIPES_METADATA,
-      DemoController.prototype,
-      'handler',
-    )
-    const methodFilters = getEnhancerMetadata(
-      EXCEPTION_FILTERS_METADATA,
-      DemoController.prototype,
-      'handler',
-    )
+    const classInterceptors = getEnhancerMetadata(INTERCEPTORS_METADATA, DemoController)
+    const methodPipes = getEnhancerMetadata(PIPES_METADATA, DemoController.prototype, 'handler')
+    const methodFilters = getEnhancerMetadata(EXCEPTION_FILTERS_METADATA, DemoController.prototype, 'handler')
 
     expect(classGuards).toEqual([DummyGuard])
     expect(classInterceptors).toEqual([DummyInterceptor])
@@ -180,12 +153,7 @@ describe('decorators and helpers', () => {
       factory: () => 'value',
     }
 
-    Reflect.defineMetadata(
-      ROUTE_ARGS_METADATA,
-      [metadataItem],
-      ParamController.prototype,
-      'method',
-    )
+    Reflect.defineMetadata(ROUTE_ARGS_METADATA, [metadataItem], ParamController.prototype, 'method')
 
     const metadata = getRouteArgsMetadata(ParamController.prototype, 'method')
     expect(metadata[0].type).toBe(RouteParamtypes.CUSTOM)
@@ -205,17 +173,9 @@ describe('decorators and helpers', () => {
       factory: () => 'value',
     }
 
-    Reflect.defineMetadata(
-      ROUTE_ARGS_METADATA,
-      [metadataItem],
-      ManualOnlyController.prototype,
-      'handler',
-    )
+    Reflect.defineMetadata(ROUTE_ARGS_METADATA, [metadataItem], ManualOnlyController.prototype, 'handler')
 
-    const metadata = getRouteArgsMetadata(
-      ManualOnlyController.prototype,
-      'handler',
-    )
+    const metadata = getRouteArgsMetadata(ManualOnlyController.prototype, 'handler')
 
     expect(metadata[0].metatype).toBeUndefined()
   })
@@ -238,9 +198,7 @@ describe('decorators and helpers', () => {
     })
 
     expect(() => HttpContext.get()).toThrowError(/not available/)
-    expect(() => HttpContext.setContext(createContext())).toThrowError(
-      /Cannot set context/,
-    )
+    expect(() => HttpContext.setContext(createContext())).toThrowError(/Cannot set context/)
   })
 
   it('creates configurable zod validation pipe for DTOs', () => {
@@ -262,10 +220,7 @@ describe('decorators and helpers', () => {
     })
     const pipe = new PipeCtor()
 
-    const output = pipe.transform(
-      { name: 'demo' },
-      { type: 'body', metatype: PayloadDto },
-    )
+    const output = pipe.transform({ name: 'demo' }, { type: 'body', metatype: PayloadDto })
 
     expect(output).toBeInstanceOf(PayloadDto)
     expect(output).toMatchObject({ name: 'demo' })
@@ -297,16 +252,14 @@ describe('decorators and helpers', () => {
     }
 
     const pipe = new ZodValidationPipe({ whitelist: false, transform: false })
-    const result = pipe.transform(
-      { name: 'test', extra: 'value' },
-      { type: 'body', metatype: RelaxedDto },
-    ) as Record<string, unknown>
+    const result = pipe.transform({ name: 'test', extra: 'value' }, { type: 'body', metatype: RelaxedDto }) as Record<
+      string,
+      unknown
+    >
 
     expect(result.extra).toBe('value')
 
-    expect(() =>
-      pipe.transform('string', { type: 'body', metatype: RelaxedDto }),
-    ).toThrow(HttpException)
+    expect(() => pipe.transform('string', { type: 'body', metatype: RelaxedDto })).toThrow(HttpException)
   })
 
   it('skips transformation for primitive payloads and aggregates errors', () => {
@@ -352,9 +305,7 @@ describe('decorators and helpers', () => {
       pipe.transform({}, { type: 'body', metatype: MinimalDto })
       throw new Error('Expected validation error')
     } catch (error) {
-      const response = (error as HttpException).getResponse<
-        Record<string, unknown>
-      >()
+      const response = (error as HttpException).getResponse<Record<string, unknown>>()
       expect(response).not.toHaveProperty('meta')
     }
 
@@ -362,9 +313,7 @@ describe('decorators and helpers', () => {
       pipe.transform(null, { type: 'body', metatype: MinimalDto })
       throw new Error('Expected validation error')
     } catch (error) {
-      const response = (error as HttpException).getResponse<
-        Record<string, unknown>
-      >()
+      const response = (error as HttpException).getResponse<Record<string, unknown>>()
       expect(response).not.toHaveProperty('meta')
     }
   })
@@ -382,12 +331,7 @@ describe('decorators and helpers', () => {
     const honoContext = createContext()
     const container = {} as any
 
-    const executionContext = createExecutionContext(
-      honoContext,
-      container,
-      DemoController,
-      handler,
-    )
+    const executionContext = createExecutionContext(honoContext, container, DemoController, handler)
 
     expect(executionContext.getClass()).toBe(DemoController)
     expect(executionContext.getHandler()).toBe(handler)
@@ -417,9 +361,7 @@ it('returns untransformed values when metatype is missing', () => {
 })
 
 it('creates extendable DTO classes with schema metadata', () => {
-  const schema = z
-    .object({ id: z.number(), label: z.string() })
-    .describe('Extend')
+  const schema = z.object({ id: z.number(), label: z.string() }).describe('Extend')
   class ExtendedDto extends createZodSchemaDto(schema) {}
 
   const dto = new ExtendedDto({ id: 1, label: 'test' })

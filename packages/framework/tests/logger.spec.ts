@@ -39,9 +39,7 @@ describe('PrettyLogger', () => {
     logger.info('hello', { foo: 'bar' })
 
     expect(baseWriter.info).toHaveBeenCalledTimes(1)
-    expect(baseWriter.info.mock.calls[0][0]).toBe(
-      '2025-01-01T00:00:00.000Z [i] [Test]',
-    )
+    expect(baseWriter.info.mock.calls[0][0]).toBe('2025-01-01T00:00:00.000Z [i] [Test]')
     expect(baseWriter.info.mock.calls[0][1]).toBe('hello')
     expect(baseWriter.info.mock.calls[0][2]).toEqual({ foo: 'bar' })
   })
@@ -56,9 +54,7 @@ describe('PrettyLogger', () => {
     logger.log('general message')
 
     expect(baseWriter.log).toHaveBeenCalledTimes(1)
-    expect(baseWriter.log.mock.calls[0][0]).toBe(
-      '2025-01-01T00:00:00.000Z [•] [Test]',
-    )
+    expect(baseWriter.log.mock.calls[0][0]).toBe('2025-01-01T00:00:00.000Z [•] [Test]')
     expect(baseWriter.log.mock.calls[0][1]).toBe('general message')
   })
 
@@ -73,9 +69,7 @@ describe('PrettyLogger', () => {
     child.warn('issue detected')
 
     expect(baseWriter.warn).toHaveBeenCalledTimes(1)
-    expect(baseWriter.warn.mock.calls[0][0]).toBe(
-      '2025-01-01T00:00:00.000Z [!] [Parent:Child]',
-    )
+    expect(baseWriter.warn.mock.calls[0][0]).toBe('2025-01-01T00:00:00.000Z [!] [Parent:Child]')
     expect(baseWriter.warn.mock.calls[0][1]).toBe('issue detected')
   })
 
@@ -90,9 +84,7 @@ describe('PrettyLogger', () => {
     child.info('hello')
 
     expect(baseWriter.info).toHaveBeenCalledTimes(1)
-    expect(baseWriter.info.mock.calls[0][0]).toBe(
-      '2025-01-01T00:00:00.000Z [i] [child]',
-    )
+    expect(baseWriter.info.mock.calls[0][0]).toBe('2025-01-01T00:00:00.000Z [i] [child]')
     expect(baseWriter.info.mock.calls[0][1]).toBe('hello')
   })
 
@@ -107,9 +99,7 @@ describe('PrettyLogger', () => {
     logger.debug('fine-grained message')
 
     expect(customWriter.log).toHaveBeenCalledTimes(1)
-    expect(customWriter.log.mock.calls[0][0]).toBe(
-      '2025-01-01T00:00:00.000Z [?]',
-    )
+    expect(customWriter.log.mock.calls[0][0]).toBe('2025-01-01T00:00:00.000Z [?]')
     expect(customWriter.log.mock.calls[0][1]).toBe('fine-grained message')
   })
 
@@ -167,8 +157,6 @@ describe('PrettyLogger', () => {
     logger.error('failure')
 
     expect(baseWriter.error).toHaveBeenCalledTimes(1)
-    expect(baseWriter.error.mock.calls[0][0]).toBe(
-      '2025-01-01T00:00:00.000Z [ERROR] [CI]',
-    )
+    expect(baseWriter.error.mock.calls[0][0]).toBe('2025-01-01T00:00:00.000Z [ERROR] [CI]')
   })
 })

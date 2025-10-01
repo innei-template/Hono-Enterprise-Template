@@ -29,9 +29,7 @@ export const HttpContext = {
   setContext(context: Context): void {
     const store = httpContextStorage.getStore()
     if (!store) {
-      throw new Error(
-        'Cannot set context outside of an active HTTPContext scope',
-      )
+      throw new Error('Cannot set context outside of an active HTTPContext scope')
     }
 
     store.context = context

@@ -1,11 +1,7 @@
 import type { Context } from 'hono'
 import type { DependencyContainer } from 'tsyringe'
 
-import type {
-  ArgumentsHost,
-  ExecutionContext,
-  HttpArgumentsHost,
-} from '../interfaces'
+import type { ArgumentsHost, ExecutionContext, HttpArgumentsHost } from '../interfaces'
 
 class HttpArgumentsHostImpl implements HttpArgumentsHost {
   constructor(private readonly context: Context) {}
@@ -15,9 +11,7 @@ class HttpArgumentsHostImpl implements HttpArgumentsHost {
   }
 }
 
-export class FrameworkExecutionContext<T extends (...args: any[]) => any>
-  implements ExecutionContext, ArgumentsHost
-{
+export class FrameworkExecutionContext<T extends (...args: any[]) => any> implements ExecutionContext, ArgumentsHost {
   constructor(
     private readonly context: Context,
     public readonly container: DependencyContainer,

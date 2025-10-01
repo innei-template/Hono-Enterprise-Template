@@ -1,10 +1,7 @@
 import 'reflect-metadata'
 
 import type { HonoHttpApplication } from '@hono-template/framework'
-import {
-  createApplication,
-  createZodValidationPipe,
-} from '@hono-template/framework'
+import { createApplication, createZodValidationPipe } from '@hono-template/framework'
 
 import { AllExceptionsFilter } from './filters/all-exceptions.filter'
 import { LoggingInterceptor } from './interceptors/logging.interceptor'
@@ -25,9 +22,7 @@ const GlobalValidationPipe = createZodValidationPipe({
   stopAtFirstError: true,
 })
 
-export async function createConfiguredApp(
-  options: BootstrapOptions = {},
-): Promise<HonoHttpApplication> {
+export async function createConfiguredApp(options: BootstrapOptions = {}): Promise<HonoHttpApplication> {
   const app = await createApplication(AppModules, {
     globalPrefix: options.globalPrefix ?? '/api',
   })

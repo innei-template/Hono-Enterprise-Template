@@ -5,23 +5,12 @@ import type { ZodError, ZodTypeAny } from 'zod'
 import { z } from 'zod'
 
 import { HttpException } from '../http-exception'
-import type {
-  ArgumentMetadata,
-  Constructor,
-  PipeTransform,
-} from '../interfaces'
+import type { ArgumentMetadata, Constructor, PipeTransform } from '../interfaces'
 
 const ZOD_SCHEMA_METADATA = Symbol.for('hono.framework.zod-schema')
 
 // eslint-disable-next-line unicorn/prefer-set-has
-const PRIMITIVE_METATYPES: Constructor[] = [
-  String,
-  Boolean,
-  Number,
-  Array,
-  Object,
-  Date,
-]
+const PRIMITIVE_METATYPES: Constructor[] = [String, Boolean, Number, Array, Object, Date]
 
 export interface ZodValidationPipeOptions {
   /** Convert validated payloads to class instances */
@@ -59,10 +48,7 @@ function isPrimitive(metatype?: Constructor): boolean {
   return PRIMITIVE_METATYPES.includes(metatype)
 }
 
-export function registerZodSchema(
-  target: Constructor,
-  schema: ZodTypeAny,
-): void {
+export function registerZodSchema(target: Constructor, schema: ZodTypeAny): void {
   Reflect.defineMetadata(ZOD_SCHEMA_METADATA, schema, target)
   Object.defineProperty(target, 'schema', {
     value: schema,
@@ -78,9 +64,8 @@ export function getZodSchema(target?: Constructor): ZodTypeAny | undefined {
   }
 
   return (
-    (Reflect.getMetadata(ZOD_SCHEMA_METADATA, target) as
-      | ZodTypeAny
-      | undefined) ?? (target as unknown as { schema?: ZodTypeAny }).schema
+    (Reflect.getMetadata(ZOD_SCHEMA_METADATA, target) as ZodTypeAny | undefined) ??
+    (target as unknown as { schema?: ZodTypeAny }).schema
   )
 }
 
@@ -109,9 +94,7 @@ function buildZodSchemaDto<TSchema extends ZodTypeAny>(
     }
   }
 
-  const desiredName =
-    options.name ??
-    (schema.description ? `${schema.description}Dto` : 'AnonymousZodDto')
+  const desiredName = options.name ?? (schema.description ? `${schema.description}Dto` : 'AnonymousZodDto')
 
   Object.defineProperty(ZodSchemaDto, 'name', {
     value: desiredName,
@@ -133,9 +116,7 @@ export function createZodSchemaDto<TSchema extends ZodTypeAny>(
   return buildZodSchemaDto(schema, options)
 }
 
-export function createZodDto<TSchema extends ZodTypeAny>(
-  schema: TSchema,
-): Constructor<z.infer<TSchema>> {
+export function createZodDto<TSchema extends ZodTypeAny>(schema: TSchema): Constructor<z.infer<TSchema>> {
   return buildZodSchemaDto(schema, {})
 }
 
@@ -162,9 +143,7 @@ export class ZodValidationPipe implements PipeTransform<unknown> {
       return this.applyTransform(metadata, value)
     }
 
-    const effectiveSchema = this.options.whitelist
-      ? schema
-      : this.relaxSchema(schema)
+    const effectiveSchema = this.options.whitelist ? schema : this.relaxSchema(schema)
 
     const parsed = effectiveSchema.safeParse(value)
 
@@ -177,17 +156,11 @@ export class ZodValidationPipe implements PipeTransform<unknown> {
 
   private shouldValidate(metadata: ArgumentMetadata): boolean {
     return (
-      metadata.type === 'body' ||
-      metadata.type === 'query' ||
-      metadata.type === 'param' ||
-      metadata.type === 'headers'
+      metadata.type === 'body' || metadata.type === 'query' || metadata.type === 'param' || metadata.type === 'headers'
     )
   }
 
-  private shouldRejectPrimitive(
-    metadata: ArgumentMetadata,
-    value: unknown,
-  ): boolean {
+  private shouldRejectPrimitive(metadata: ArgumentMetadata, value: unknown): boolean {
     if (!this.options.forbidUnknownValues) {
       return false
     }
@@ -225,14 +198,9 @@ export class ZodValidationPipe implements PipeTransform<unknown> {
     return Object.assign(new Metatype!(), value)
   }
 
-  private createValidationException(
-    error: ZodError,
-    metadata: ArgumentMetadata,
-  ): HttpException {
+  private createValidationException(error: ZodError, metadata: ArgumentMetadata): HttpException {
     const statusCode = this.options.errorHttpStatusCode
-    const issues = this.options.stopAtFirstError
-      ? error.issues.slice(0, 1)
-      : error.issues
+    const issues = this.options.stopAtFirstError ? error.issues.slice(0, 1) : error.issues
 
     const errors: Record<string, string[]> = {}
 
@@ -260,10 +228,7 @@ export class ZodValidationPipe implements PipeTransform<unknown> {
     return new HttpException(response, statusCode)
   }
 
-  private createException(
-    message: string,
-    metadata: ArgumentMetadata,
-  ): HttpException {
+  private createException(message: string, metadata: ArgumentMetadata): HttpException {
     const statusCode = this.options.errorHttpStatusCode
     const response: Record<string, unknown> = {
       statusCode,
@@ -282,9 +247,7 @@ export class ZodValidationPipe implements PipeTransform<unknown> {
   }
 }
 
-export function createZodValidationPipe(
-  options: ZodValidationPipeOptions = {},
-): Constructor<PipeTransform> {
+export function createZodValidationPipe(options: ZodValidationPipeOptions = {}): Constructor<PipeTransform> {
   @injectable()
   class ConfiguredZodValidationPipe extends ZodValidationPipe {
     constructor() {

@@ -1,16 +1,9 @@
-import type {
-  CallHandler,
-  ExecutionContext,
-  NestInterceptor,
-} from '@hono-template/framework'
+import type { CallHandler, ExecutionContext, NestInterceptor } from '@hono-template/framework'
 import { injectable } from 'tsyringe'
 
 @injectable()
 export class LoggingInterceptor implements NestInterceptor {
-  async intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-  ): Promise<unknown> {
+  async intercept(context: ExecutionContext, next: CallHandler): Promise<unknown> {
     const start = performance.now()
     const honoContext = context.getContext()
     const { method, url } = honoContext.req

@@ -12,8 +12,7 @@ export class ParseIntPipe implements PipeTransform<unknown, number> {
       })
     }
 
-    const parsedValue =
-      typeof value === 'number' ? value : Number.parseInt(String(value), 10)
+    const parsedValue = typeof value === 'number' ? value : Number.parseInt(String(value), 10)
 
     if (Number.isNaN(parsedValue)) {
       throw new BadRequestException({

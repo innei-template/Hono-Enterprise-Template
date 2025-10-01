@@ -8,7 +8,7 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
 import type {
-ArgumentMetadata, 
+  ArgumentMetadata,
   CanActivate,
   Constructor,
   ExceptionFilter,
@@ -16,7 +16,8 @@ ArgumentMetadata,
   HonoHttpApplication,
   NestInterceptor,
   PipeTransform,
-  RouteParamMetadataItem} from '../src'
+  RouteParamMetadataItem,
+} from '../src'
 import {
   BadRequestException,
   Body,
@@ -52,16 +53,8 @@ function createRequest(path: string, init?: RequestInit) {
 const callOrder: string[] = []
 
 function FactoryParam() {
-  return (
-    target: object,
-    propertyKey: string | symbol,
-    parameterIndex: number,
-  ) => {
-    const existing = (Reflect.getMetadata(
-      ROUTE_ARGS_METADATA,
-      target,
-      propertyKey,
-    ) || []) as RouteParamMetadataItem[]
+  return (target: object, propertyKey: string | symbol, parameterIndex: number) => {
+    const existing = (Reflect.getMetadata(ROUTE_ARGS_METADATA, target, propertyKey) || []) as RouteParamMetadataItem[]
     existing.push({
       index: parameterIndex,
       type: RouteParamtypes.CUSTOM,
@@ -131,9 +124,7 @@ class TrackingZodPipe extends ZodValidationPipe {
   }
 
   transform(value: unknown, metadata: ArgumentMetadata) {
-    callOrder.push(
-      `zod-${metadata.type}:${metadata.metatype?.name ?? 'unknown'}`,
-    )
+    callOrder.push(`zod-${metadata.type}:${metadata.metatype?.name ?? 'unknown'}`)
     return super.transform(value, metadata)
   }
 }
@@ -397,11 +388,8 @@ describe('HonoHttpApplication end-to-end', () => {
   let app: HonoHttpApplication
 
   it('emits metadata for DTO parameters', () => {
-    const paramTypes = (Reflect.getMetadata(
-      'design:paramtypes',
-      DemoController.prototype,
-      'double',
-    ) ?? []) as Constructor[]
+    const paramTypes = (Reflect.getMetadata('design:paramtypes', DemoController.prototype, 'double') ??
+      []) as Constructor[]
     expect(paramTypes.length).toBeGreaterThan(1)
     expect(paramTypes[1]).toBe(BodyDto)
   })
@@ -439,9 +427,7 @@ describe('HonoHttpApplication end-to-end', () => {
     expect(callOrder).toContain('pipe-query')
     expect(callOrder).toContain('method-interceptor-before')
     expect(callOrder).toContain('method-interceptor-after')
-    expect(callOrder.indexOf('method-interceptor-before')).toBeLessThan(
-      callOrder.indexOf('method-interceptor-after'),
-    )
+    expect(callOrder.indexOf('method-interceptor-before')).toBeLessThan(callOrder.indexOf('method-interceptor-after'))
   })
 
   it('enforces method guard and returns forbidden', async () => {
@@ -464,19 +450,13 @@ describe('HonoHttpApplication end-to-end', () => {
   })
 
   it('supports array buffer and readable stream responses', async () => {
-    const bufferResponse = await fetcher(
-      createRequest('/api/demo/buffer', { headers: authorizedHeaders() }),
-    )
+    const bufferResponse = await fetcher(createRequest('/api/demo/buffer', { headers: authorizedHeaders() }))
     expect(await bufferResponse.arrayBuffer()).toBeInstanceOf(ArrayBuffer)
 
-    const arrayBufferResponse = await fetcher(
-      createRequest('/api/demo/array-buffer', { headers: authorizedHeaders() }),
-    )
+    const arrayBufferResponse = await fetcher(createRequest('/api/demo/array-buffer', { headers: authorizedHeaders() }))
     expect((await arrayBufferResponse.arrayBuffer()).byteLength).toBe(16)
 
-    const streamResponse = await fetcher(
-      createRequest('/api/demo/stream', { headers: authorizedHeaders() }),
-    )
+    const streamResponse = await fetcher(createRequest('/api/demo/stream', { headers: authorizedHeaders() }))
     expect(await streamResponse.text()).toBe('stream-data')
   })
 
@@ -727,17 +707,8 @@ describe('HonoHttpApplication end-to-end', () => {
   })
 
   it('emits parameter metadata logs when DEBUG_PARAMS is enabled', async () => {
-    const original = Reflect.getMetadata(
-      'design:paramtypes',
-      DemoController.prototype,
-      'greet',
-    )
-    Reflect.defineMetadata(
-      'design:paramtypes',
-      [String],
-      DemoController.prototype,
-      'greet',
-    )
+    const original = Reflect.getMetadata('design:paramtypes', DemoController.prototype, 'greet')
+    Reflect.defineMetadata('design:paramtypes', [String], DemoController.prototype, 'greet')
     process.env.DEBUG_PARAMS = 'true'
 
     try {
@@ -749,18 +720,9 @@ describe('HonoHttpApplication end-to-end', () => {
       expect(response.status).toBe(200)
     } finally {
       if (original) {
-        Reflect.defineMetadata(
-          'design:paramtypes',
-          original,
-          DemoController.prototype,
-          'greet',
-        )
+        Reflect.defineMetadata('design:paramtypes', original, DemoController.prototype, 'greet')
       } else {
-        Reflect.deleteMetadata(
-          'design:paramtypes',
-          DemoController.prototype,
-          'greet',
-        )
+        Reflect.deleteMetadata('design:paramtypes', DemoController.prototype, 'greet')
       }
       delete process.env.DEBUG_PARAMS
     }
@@ -856,9 +818,7 @@ describe('HonoHttpApplication internals', () => {
     registerSingleton(Anonymous as Constructor)
     registerSingleton(Anonymous as Constructor)
 
-    expect(app.getContainer().isRegistered(Temp as Constructor, true)).toBe(
-      true,
-    )
+    expect(app.getContainer().isRegistered(Temp as Constructor, true)).toBe(true)
   })
 
   it('normalizes empty paths to root', async () => {

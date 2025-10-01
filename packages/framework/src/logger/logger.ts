@@ -96,9 +96,7 @@ export class PrettyLogger {
   }
 
   extend(childNamespace: string): PrettyLogger {
-    const combined = this.namespace
-      ? `${this.namespace}:${childNamespace}`
-      : childNamespace
+    const combined = this.namespace ? `${this.namespace}:${childNamespace}` : childNamespace
     return new PrettyLogger(combined, {
       writer: this.writer,
       clock: this.clock,
@@ -118,9 +116,7 @@ export class PrettyLogger {
     const formatTimestamp = this.colorsEnabled ? this.timestampColor : identity
     const formatNamespace = this.colorsEnabled ? this.namespaceColor : identity
 
-    const labelValue = this.useTextLabels
-      ? levelTextLabels[level].padEnd(5, ' ')
-      : levelSymbols[level]
+    const labelValue = this.useTextLabels ? levelTextLabels[level].padEnd(5, ' ') : levelSymbols[level]
     const segments = [
       formatTimestamp(timestamp),
       `[${formatLevel(labelValue)}]`,
@@ -145,9 +141,6 @@ export class PrettyLogger {
   }
 }
 
-export function createLogger(
-  namespace?: string,
-  options?: LoggerOptions,
-): PrettyLogger {
+export function createLogger(namespace?: string, options?: LoggerOptions): PrettyLogger {
   return new PrettyLogger(namespace, options)
 }

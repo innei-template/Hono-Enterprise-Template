@@ -12,11 +12,7 @@ import { getControllerMetadata } from './decorators/controller'
 import { getRoutesMetadata } from './decorators/http-methods'
 import { getModuleMetadata } from './decorators/module'
 import { getRouteArgsMetadata } from './decorators/params'
-import {
-  BadRequestException,
-  ForbiddenException,
-  HttpException,
-} from './http-exception'
+import { BadRequestException, ForbiddenException, HttpException } from './http-exception'
 import type {
   ArgumentMetadata,
   CanActivate,
@@ -31,12 +27,7 @@ import { RouteParamtypes } from './interfaces'
 import type { PrettyLogger } from './logger'
 import { createLogger } from './logger'
 import { createExecutionContext } from './utils/execution-context'
-import {
-  collectFilters,
-  collectGuards,
-  collectInterceptors,
-  collectPipes,
-} from './utils/metadata'
+import { collectFilters, collectGuards, collectInterceptors, collectPipes } from './utils/metadata'
 
 export interface ApplicationOptions {
   container?: DependencyContainer
@@ -53,20 +44,12 @@ function createDefaultRegistry(): GlobalEnhancerRegistry {
   }
 }
 
-type HTTPMethod =
-  | 'GET'
-  | 'POST'
-  | 'PUT'
-  | 'PATCH'
-  | 'DELETE'
-  | 'OPTIONS'
-  | 'HEAD'
+type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD'
 
 export class HonoHttpApplication {
   private readonly app = new Hono()
   private readonly container: DependencyContainer
-  private readonly globalEnhancers: GlobalEnhancerRegistry =
-    createDefaultRegistry()
+  private readonly globalEnhancers: GlobalEnhancerRegistry = createDefaultRegistry()
   private readonly registeredModules = new Set<Constructor>()
   private readonly logger: PrettyLogger
   private readonly diLogger: PrettyLogger
@@ -81,22 +64,15 @@ export class HonoHttpApplication {
     this.diLogger = this.logger.extend('DI')
     this.routerLogger = this.logger.extend('Router')
     const rawModuleName = (this.rootModule as Function).name
-    this.moduleName =
-      rawModuleName && rawModuleName.trim().length > 0
-        ? rawModuleName
-        : 'AnonymousModule'
+    this.moduleName = rawModuleName && rawModuleName.trim().length > 0 ? rawModuleName : 'AnonymousModule'
     this.container = options.container ?? rootContainer.createChildContainer()
-    this.logger.info(
-      `Initialized application container for module ${this.moduleName}`,
-    )
+    this.logger.info(`Initialized application container for module ${this.moduleName}`)
   }
 
   async init(): Promise<void> {
     this.logger.info(`Bootstrapping application for module ${this.moduleName}`)
     await this.registerModule(this.rootModule)
-    this.logger.info(
-      `Application initialization complete for module ${this.moduleName}`,
-    )
+    this.logger.info(`Application initialization complete for module ${this.moduleName}`)
   }
 
   getInstance(): Hono {
@@ -111,13 +87,9 @@ export class HonoHttpApplication {
     try {
       return this.container.resolve(token as unknown as InjectionToken<T>)
     } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message.includes('Cannot inject the dependency ')
-      ) {
+      if (error instanceof Error && error.message.includes('Cannot inject the dependency ')) {
         // Cannot inject the dependency "appService" at position #0 of "AppController" constructor.
-        const regexp =
-          /Cannot inject the dependency "([^"]+)" at position #(\d+) of "([^"]+)" constructor\./
+        const regexp = /Cannot inject the dependency "([^"]+)" at position #(\d+) of "([^"]+)" constructor\./
         const match = error.message.match(regexp)
         if (match) {
           const [, dependency, position, constructor] = match
@@ -125,9 +97,7 @@ export class HonoHttpApplication {
             `Cannot inject the dependency ${colors.yellow(dependency)} at position #${position} of "${colors.yellow(constructor)}" constructor.` +
               `\n` +
               `Please check if the dependency is registered in the container. Check import the dependency not the type.` +
-              `\n${colors.red(
-                `- import type { ${dependency} } from "./service";`,
-              )}\n${colors.green(
+              `\n${colors.red(`- import type { ${dependency} } from "./service";`)}\n${colors.green(
                 `+ import { ${dependency} } from "./service";`,
               )}`,
           )
@@ -141,8 +111,7 @@ export class HonoHttpApplication {
     const injectionToken = token as unknown as InjectionToken<T>
     if (!this.container.isRegistered(injectionToken, true)) {
       this.container.registerSingleton(injectionToken, token)
-      const providerName =
-        token.name && token.name.length > 0 ? token.name : token.toString()
+      const providerName = token.name && token.name.length > 0 ? token.name : token.toString()
       this.diLogger.debug('Registered singleton provider', providerName)
     }
   }
@@ -155,9 +124,7 @@ export class HonoHttpApplication {
     this.globalEnhancers.pipes.push(...pipes)
   }
 
-  useGlobalInterceptors(
-    ...interceptors: Array<Constructor<NestInterceptor>>
-  ): void {
+  useGlobalInterceptors(...interceptors: Array<Constructor<NestInterceptor>>): void {
     this.globalEnhancers.interceptors.push(...interceptors)
   }
 
@@ -203,23 +170,11 @@ export class HonoHttpApplication {
 
       this.app.on(method, fullPath, async (context: Context) => {
         return await HttpContext.run(context, async () => {
-          const handler = Reflect.get(
-            controllerInstance,
-            route.handlerName,
-          ) as (...args: any[]) => any
-          const executionContext = createExecutionContext(
-            context,
-            this.container,
-            controller,
-            handler,
-          )
+          const handler = Reflect.get(controllerInstance, route.handlerName) as (...args: any[]) => any
+          const executionContext = createExecutionContext(context, this.container, controller, handler)
 
           try {
-            await this.executeGuards(
-              controller,
-              route.handlerName,
-              executionContext,
-            )
+            await this.executeGuards(controller, route.handlerName, executionContext)
 
             const response = await this.executeInterceptors(
               controller,
@@ -240,22 +195,12 @@ export class HonoHttpApplication {
 
             return response
           } catch (error) {
-            return await this.handleException(
-              controller,
-              route.handlerName,
-              error,
-              executionContext,
-              context,
-            )
+            return await this.handleException(controller, route.handlerName, error, executionContext, context)
           }
         })
       })
 
-      this.routerLogger.info(
-        `Mapped route ${method} ${fullPath} -> ${controller.name}.${String(
-          route.handlerName,
-        )}`,
-      )
+      this.routerLogger.info(`Mapped route ${method} ${fullPath} -> ${controller.name}.${String(route.handlerName)}`)
     }
   }
 
@@ -279,20 +224,13 @@ export class HonoHttpApplication {
     handlerName: string | symbol,
     context: ReturnType<typeof createExecutionContext>,
   ): Promise<void> {
-    const guardCtors = [
-      ...this.globalEnhancers.guards,
-      ...collectGuards(controller, handlerName),
-    ]
+    const guardCtors = [...this.globalEnhancers.guards, ...collectGuards(controller, handlerName)]
 
     for (const guardCtor of guardCtors) {
       const guard = this.resolveInstance(guardCtor)
       const canActivate = await guard.canActivate(context)
       if (!canActivate) {
-        this.logger.warn(
-          `Guard ${guardCtor.name} blocked ${controller.name}.${String(
-            handlerName,
-          )} execution`,
-        )
+        this.logger.warn(`Guard ${guardCtor.name} blocked ${controller.name}.${String(handlerName)} execution`)
         throw new ForbiddenException()
       }
     }
@@ -304,18 +242,13 @@ export class HonoHttpApplication {
     executionContext: ReturnType<typeof createExecutionContext>,
     finalHandler: () => Promise<unknown>,
   ): Promise<Response> {
-    const interceptorCtors = [
-      ...this.globalEnhancers.interceptors,
-      ...collectInterceptors(controller, handlerName),
-    ]
+    const interceptorCtors = [...this.globalEnhancers.interceptors, ...collectInterceptors(controller, handlerName)]
 
     const callHandler = {
       handle: finalHandler,
     }
 
-    const interceptors = interceptorCtors
-      .map((ctor) => this.resolveInstance(ctor))
-      .reverse()
+    const interceptors = interceptorCtors.map((ctor) => this.resolveInstance(ctor)).reverse()
 
     const dispatch = interceptors.reduce(
       (next, interceptor) => ({
@@ -335,10 +268,7 @@ export class HonoHttpApplication {
     executionContext: ReturnType<typeof createExecutionContext>,
     context: Context,
   ): Promise<Response> {
-    const filterCtors = [
-      ...this.globalEnhancers.filters,
-      ...collectFilters(controller, handlerName),
-    ]
+    const filterCtors = [...this.globalEnhancers.filters, ...collectFilters(controller, handlerName)]
     for (const filterCtor of filterCtors) {
       const filter = this.resolveInstance(filterCtor)
       const maybeResponse = await filter.catch(error as Error, executionContext)
@@ -352,9 +282,7 @@ export class HonoHttpApplication {
     }
 
     const message =
-      error instanceof Error
-        ? `${error.name}: ${error.message}\n${error.stack ?? ''}`.trim()
-        : String(error)
+      error instanceof Error ? `${error.name}: ${error.message}\n${error.stack ?? ''}`.trim() : String(error)
     this.logger.error(`Unhandled error ${message}`)
     const response = {
       statusCode: 500,
@@ -414,14 +342,8 @@ export class HonoHttpApplication {
     })
   }
 
-  private getGlobalAndHandlerPipes(
-    controller: Constructor,
-    handlerName: string | symbol,
-  ): PipeTransform[] {
-    const pipeCtors = [
-      ...this.globalEnhancers.pipes,
-      ...collectPipes(controller, handlerName),
-    ]
+  private getGlobalAndHandlerPipes(controller: Constructor, handlerName: string | symbol): PipeTransform[] {
+    const pipeCtors = [...this.globalEnhancers.pipes, ...collectPipes(controller, handlerName)]
 
     return pipeCtors.map((ctor) => this.resolveInstance(ctor))
   }
@@ -433,12 +355,7 @@ export class HonoHttpApplication {
     context: Context,
     executionContext: ReturnType<typeof createExecutionContext>,
   ): Promise<unknown[]> {
-    const paramsMetadata = this.getParametersMetadata(
-      controller,
-      handlerName,
-      handler,
-      context,
-    )
+    const paramsMetadata = this.getParametersMetadata(controller, handlerName, handler, context)
     if (isDebugEnabled()) {
       this.logger.debug('Resolved params metadata', {
         controller: controller.name,
@@ -446,20 +363,13 @@ export class HonoHttpApplication {
         paramsMetadata,
       })
     }
-    const maxIndex =
-      paramsMetadata.length > 0
-        ? Math.max(...paramsMetadata.map((item) => item.index))
-        : -1
+    const maxIndex = paramsMetadata.length > 0 ? Math.max(...paramsMetadata.map((item) => item.index)) : -1
     const args: unknown[] = Array.from({ length: maxIndex + 1 })
     const sharedPipes = this.getGlobalAndHandlerPipes(controller, handlerName)
 
     // console.debug('Params metadata', controller.name, handlerName, paramsMetadata);
     for (const metadata of paramsMetadata) {
-      const value = await this.resolveParameterValue(
-        metadata,
-        context,
-        executionContext,
-      )
+      const value = await this.resolveParameterValue(metadata, context, executionContext)
       const transformed = await this.applyPipes(value, metadata, sharedPipes)
       args[metadata.index] = transformed
     }
@@ -474,15 +384,9 @@ export class HonoHttpApplication {
     handler: Function,
     context: Context,
   ): RouteParamMetadataItem[] {
-    const controllerMetadata = getRouteArgsMetadata(
-      controller.prototype,
-      handlerName,
-    )
-    const paramTypes: Constructor[] = (Reflect.getMetadata(
-      'design:paramtypes',
-      controller.prototype,
-      handlerName,
-    ) || []) as Constructor[]
+    const controllerMetadata = getRouteArgsMetadata(controller.prototype, handlerName)
+    const paramTypes: Constructor[] = (Reflect.getMetadata('design:paramtypes', controller.prototype, handlerName) ||
+      []) as Constructor[]
     const handlerParamLength = handler.length
 
     const indexed = new Map<number, RouteParamMetadataItem>()
@@ -494,12 +398,7 @@ export class HonoHttpApplication {
       })
     }
 
-    const potentialIndexes = [
-      ...indexed.keys(),
-      paramTypes.length - 1,
-      handlerParamLength - 1,
-      -1,
-    ]
+    const potentialIndexes = [...indexed.keys(), paramTypes.length - 1, handlerParamLength - 1, -1]
 
     let maxIndex = -1
     for (const value of potentialIndexes) {
@@ -519,9 +418,7 @@ export class HonoHttpApplication {
       if (existing) {
         items.push(existing)
       } else {
-        const shouldInferContext =
-          index < Math.max(paramTypes.length, handlerParamLength) &&
-          handlerParamLength > 0
+        const shouldInferContext = index < Math.max(paramTypes.length, handlerParamLength) && handlerParamLength > 0
         if (isDebugEnabled()) {
           this.logger.debug('Inferred context parameter', {
             controller: controller.name,
@@ -562,14 +459,10 @@ export class HonoHttpApplication {
         return await this.readBody(context)
       }
       case RouteParamtypes.QUERY: {
-        return metadata.data
-          ? context.req.query(metadata.data)
-          : context.req.query()
+        return metadata.data ? context.req.query(metadata.data) : context.req.query()
       }
       case RouteParamtypes.PARAM: {
-        return metadata.data
-          ? context.req.param(metadata.data)
-          : context.req.param()
+        return metadata.data ? context.req.param(metadata.data) : context.req.param()
       }
       case RouteParamtypes.HEADERS: {
         if (metadata.data) {
@@ -589,9 +482,7 @@ export class HonoHttpApplication {
     metadata: RouteParamMetadataItem,
     sharedPipes: PipeTransform[],
   ): Promise<unknown> {
-    const paramPipes = (metadata.pipes || []).map((ctor) =>
-      this.resolveInstance(ctor),
-    )
+    const paramPipes = (metadata.pipes || []).map((ctor) => this.resolveInstance(ctor))
     const pipes = [...sharedPipes, ...paramPipes]
 
     if (pipes.length === 0) {

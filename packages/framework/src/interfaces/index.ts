@@ -18,14 +18,7 @@ export interface PipeTransform<T = unknown, R = T> {
 }
 
 export interface ArgumentMetadata {
-  type:
-    | 'body'
-    | 'query'
-    | 'param'
-    | 'context'
-    | 'custom'
-    | 'headers'
-    | 'request'
+  type: 'body' | 'query' | 'param' | 'context' | 'custom' | 'headers' | 'request'
   data?: string
   metatype?: Constructor
 }

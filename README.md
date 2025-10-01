@@ -52,13 +52,7 @@ Coverage reports are generated at `packages/framework/coverage`.
 ### 1) Modules and Controllers
 
 ```ts
-import {
-  Controller,
-  Get,
-  Query,
-  UseGuards,
-  Module,
-} from '@hono-template/framework'
+import { Controller, Get, Query, UseGuards, Module } from '@hono-template/framework'
 
 @Controller('demo')
 export class DemoController {
@@ -130,10 +124,7 @@ Logger options include custom writer, color strategy, clock, per-level colors, a
 ```ts
 import 'reflect-metadata'
 import { serve } from '@hono/node-server'
-import {
-  createApplication,
-  createZodValidationPipe,
-} from '@hono-template/framework'
+import { createApplication, createZodValidationPipe } from '@hono-template/framework'
 import { AppModule } from './app.module'
 
 const ValidationPipe = createZodValidationPipe({
@@ -198,12 +189,7 @@ Throw `HttpException` or built-ins like `BadRequestException`, `ForbiddenExcepti
 
 ```ts
 import { z } from 'zod'
-import {
-  Body,
-  Controller,
-  Post,
-  createZodSchemaDto,
-} from '@hono-template/framework'
+import { Body, Controller, Post, createZodSchemaDto } from '@hono-template/framework'
 
 const CreateMessageSchema = z.object({
   message: z.string().min(1),
