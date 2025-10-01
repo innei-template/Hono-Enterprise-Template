@@ -7,7 +7,6 @@ export interface ModuleMetadata {
   controllers?: Constructor[]
   providers?: Constructor[]
   imports?: Constructor[]
-  exports?: Constructor[]
 }
 
 export interface CanActivate {

@@ -5,7 +5,7 @@ import { createConfiguredApp as createAppFactory } from '../app.factory'
 
 const BASE_URL = 'http://localhost'
 
-function buildRequest (path: string, init?: RequestInit) {
+function buildRequest(path: string, init?: RequestInit) {
   return new Request(`${BASE_URL}${path}`, init)
 }
 
@@ -127,13 +127,16 @@ describe('HonoHttpApplication integration', () => {
     )
 
     const body = await json(response)
-    expect(body.status).toBe(400)
+    expect(body.status).toBe(422)
     expect(body.data).toMatchObject({
+      statusCode: 422,
       message: 'Validation failed',
-      details: {
-        errors: {
-          message: ['Message is required'],
-        },
+      errors: {
+        message: ['Message is required'],
+      },
+      meta: {
+        target: 'CreateMessageDto',
+        paramType: 'body',
       },
     })
   })

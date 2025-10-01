@@ -8,7 +8,7 @@ A NestJS‑inspired, Hono‑powered enterprise template for building modular, ty
 - **Modular architecture + DI**: `tsyringe`-based container, constructor injection, module imports/exports.
 - **Request context**: `HttpContext` built on `AsyncLocalStorage` to safely access the current `Context` anywhere.
 - **Composables (enhancers)**: Guards, Pipes, Interceptors, and Exception Filters with a declarative API.
-- **Zod validation pipe**: `createZodValidationPipe(schema)` for concise, strongly typed payload validation.
+- **Zod validation pipe**: metadata-driven DTO validation via `createZodValidationPipe({ ... })` and `@ZodSchema` decorators.
 - **Pretty logger**: Namespaced, colorized output with CI-safe text labels and hierarchical `extend()`.
 - **First-class testing**: Framework Vitest suite with 100% coverage; demo app covers all enhancer paths.
 
@@ -92,7 +92,7 @@ Bootstrapping with `createApplication(RootModule, options)` performs:
 - `@UseInterceptors(...interceptors)`: `interceptor.intercept(context, next)` chaining.
 - `@UseFilters(...filters)`: handle and customize error responses; unhandled errors return a 500 JSON payload.
 
-Zod validation is provided via `createZodValidationPipe(schema)`. See `packages/framework/tests/application.spec.ts` for full examples.
+Zod validation is provided by registering DTO classes with `createZodSchemaDto(...)` (or the lower-level `@ZodSchema(...)`) and enabling a global `createZodValidationPipe({ ... })`. See `packages/framework/tests/application.spec.ts` for full examples.
 
 ### 3) Result Handling
 
@@ -130,38 +130,41 @@ Logger options include custom writer, color strategy, clock, per-level colors, a
 ```ts
 import 'reflect-metadata'
 import { serve } from '@hono/node-server'
-import { createApplication } from '@hono-template/framework'
+import {
+  createApplication,
+  createZodValidationPipe,
+} from '@hono-template/framework'
 import { AppModule } from './app.module'
 
+const ValidationPipe = createZodValidationPipe({
+  transform: true,
+  whitelist: true,
+  errorHttpStatusCode: 422,
+  forbidUnknownValues: true,
+})
+
 const app = await createApplication(AppModule, { globalPrefix: '/api' })
+app.useGlobalPipes(ValidationPipe)
+app.useGlobalFilters(AllExceptionsFilter)
+app.useGlobalInterceptors(LoggingInterceptor)
+
 const hono = app.getInstance()
 
 serve({ fetch: hono.fetch, port: 3000 })
 ```
 
-You can also register global enhancers:
-
-```ts
-app.useGlobalFilters(AllExceptionsFilter)
-app.useGlobalInterceptors(LoggingInterceptor)
-app.useGlobalPipes(ValidationPipe)
-```
-
 ### Dependency Injection & Types
 
-Use `tsyringe` decorators for providers and constructor injection:
+Use `tsyringe` decorators for providers and constructor injection. When running through transpilers that strip design metadata (e.g. esbuild), add a `Reflect.metadata` shim so runtime DI still sees parameter types:
 
 ```ts
-import { injectable, inject } from 'tsyringe'
+import 'reflect-metadata'
+import { injectable } from 'tsyringe'
 import { Controller, Get } from '@hono-template/framework'
 
 @injectable()
 class AppService {
-  getHello(echo?: string | null): {
-    message: string
-    timestamp: string
-    echo?: string | null
-  } {
+  getHello(echo?: string | null) {
     return {
       message: 'Hello',
       timestamp: new Date().toISOString(),
@@ -172,8 +175,9 @@ class AppService {
 
 @Controller('app')
 @injectable()
+@Reflect.metadata('design:paramtypes', [AppService])
 class AppController {
-  constructor(@inject(AppService) private readonly service: AppService) {}
+  constructor(private readonly service: AppService) {}
 
   @Get('/')
   getRoot() {
@@ -195,10 +199,10 @@ Throw `HttpException` or built-ins like `BadRequestException`, `ForbiddenExcepti
 ```ts
 import { z } from 'zod'
 import {
-  createZodValidationPipe,
   Body,
-  Post,
   Controller,
+  Post,
+  createZodSchemaDto,
 } from '@hono-template/framework'
 
 const CreateMessageSchema = z.object({
@@ -206,18 +210,18 @@ const CreateMessageSchema = z.object({
   tags: z.array(z.string()).default([]),
 })
 
-type CreateMessageInput = z.infer<typeof CreateMessageSchema>
-const CreateMessagePipe =
-  createZodValidationPipe<CreateMessageInput>(CreateMessageSchema)
+class CreateMessageDto extends createZodSchemaDto(CreateMessageSchema) {}
 
 @Controller('messages')
 class MessagesController {
   @Post('/:id')
-  create(@Body(undefined, CreateMessagePipe) body: CreateMessageInput) {
+  create(@Body() body: CreateMessageDto) {
     return { status: 'queued', ...body }
   }
 }
 ```
+
+Alternative: call `createZodDto(CreateMessageSchema)` to obtain a ready-to-use class without extending.
 
 ## 📜 Scripts
 

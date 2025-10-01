@@ -13,18 +13,17 @@ import {
   UseGuards,
 } from '@hono-template/framework'
 import type { Context } from 'hono'
-import { inject, injectable } from 'tsyringe'
+import { injectable } from 'tsyringe'
 
+import { ApiKeyGuard } from '../../guards/api-key.guard'
 import { AppService } from './app.service'
-import { ApiKeyGuard } from './guards/api-key.guard'
-import { CreateMessagePipe } from './pipes/create-message.pipe'
 import { ParseIntPipe } from './pipes/parse-int.pipe'
-import type { CreateMessageInput } from './schemas/message.schema'
+import { CreateMessageDto } from './schemas/message.schema'
 
 @Controller('app')
 @injectable()
 export class AppController {
-  constructor(@inject(AppService) private readonly appService: AppService) {}
+  constructor(private readonly appService: AppService) {}
 
   @Get('/')
   async getRoot(@Query('echo') echo?: string | null) {
@@ -54,7 +53,7 @@ export class AppController {
   @Post('/messages/:id')
   async createMessage(
     @Param('id', ParseIntPipe) id: number,
-    @Body(undefined, CreateMessagePipe) payload: CreateMessageInput,
+    @Body() payload: CreateMessageDto,
     context: Context,
     @Headers('x-request-id') requestId?: string,
   ) {

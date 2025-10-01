@@ -3,6 +3,9 @@ import 'reflect-metadata'
 import { serve } from '@hono/node-server'
 
 import { createConfiguredApp } from './app.factory'
+import { logger } from './helpers/logger.helper'
+
+process.title = 'Hono HTTP Server'
 
 async function bootstrap() {
   const app = await createConfiguredApp({
@@ -12,12 +15,14 @@ async function bootstrap() {
   const hono = app.getInstance()
   const port = Number(process.env.PORT ?? 3000)
 
-  console.info(`Starting Hono HTTP application on port ${port}`)
-
+  const hostname = process.env.HOSTNAME ?? '0.0.0.0'
   serve({
     fetch: hono.fetch,
     port,
+    hostname,
   })
+
+  logger.info(`Hono HTTP application started on http://${hostname}:${port}`)
 }
 
 bootstrap().catch((error) => {

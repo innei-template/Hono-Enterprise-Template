@@ -7,10 +7,11 @@
     "baseUrl": ".",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "verbatimModuleSyntax": true,
     "types": ["node"],
     "paths": {
-      "~": ["./src"],
-      "~/*": ["./src/*"]
+      "core": ["./src"],
+      "core/*": ["./src/*"]
     },
     "resolveJsonModule": true,
     "allowJs": true,

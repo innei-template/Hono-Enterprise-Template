@@ -7,12 +7,15 @@ import {
   BadRequestException,
   Body,
   Controller,
+  createZodDto,
+  createZodSchemaDto,
   createZodValidationPipe,
   Get,
   getControllerMetadata,
   getModuleMetadata,
   getRouteArgsMetadata,
   getRoutesMetadata,
+  getZodSchema,
   Headers,
   HttpContext,
   HttpException,
@@ -21,6 +24,8 @@ import {
   Query,
   Req,
   RouteParamtypes,
+  ZodSchema,
+  ZodValidationPipe,
 } from '../src'
 import {
   EXCEPTION_FILTERS_METADATA,
@@ -186,6 +191,35 @@ describe('decorators and helpers', () => {
     expect(metadata[0].type).toBe(RouteParamtypes.CUSTOM)
   })
 
+  it('gracefully handles missing design:paramtypes metadata', () => {
+    class ManualOnlyController {
+      // No decorators here to prevent TypeScript from emitting param metadata
+      handler(_value: unknown) {}
+    }
+
+    const metadataItem = {
+      index: 0,
+      type: RouteParamtypes.CUSTOM,
+      data: 'manual',
+      pipes: [],
+      factory: () => 'value',
+    }
+
+    Reflect.defineMetadata(
+      ROUTE_ARGS_METADATA,
+      [metadataItem],
+      ManualOnlyController.prototype,
+      'handler',
+    )
+
+    const metadata = getRouteArgsMetadata(
+      ManualOnlyController.prototype,
+      'handler',
+    )
+
+    expect(metadata[0].metatype).toBeUndefined()
+  })
+
   it('wraps http exceptions with status and response', () => {
     const base = new HttpException({ message: 'base' }, 499)
     expect(base.getStatus()).toBe(499)
@@ -209,34 +243,138 @@ describe('decorators and helpers', () => {
     )
   })
 
-  it('creates zod validation pipe for bodies', () => {
+  it('creates configurable zod validation pipe for DTOs', () => {
     const schema = z
       .object({
         name: z.string({ required_error: 'required' }).min(1, 'required'),
       })
-      .describe('Schema')
-    const Pipe = createZodValidationPipe(schema)
-    const pipe = new Pipe()
+      .describe('Payload')
 
-    expect(Pipe.name).toBe('ZodValidationPipe_Schema')
+    @ZodSchema(schema)
+    class PayloadDto {
+      name!: string
+    }
 
-    const output = pipe.transform({ name: 'demo' }, { type: 'body' })
-    expect(output).toEqual({ name: 'demo' })
+    const PipeCtor = createZodValidationPipe({
+      errorHttpStatusCode: 422,
+      enableDebugMessages: true,
+      stopAtFirstError: true,
+    })
+    const pipe = new PipeCtor()
+
+    const output = pipe.transform(
+      { name: 'demo' },
+      { type: 'body', metatype: PayloadDto },
+    )
+
+    expect(output).toBeInstanceOf(PayloadDto)
+    expect(output).toMatchObject({ name: 'demo' })
 
     try {
-      pipe.transform({}, { type: 'body', data: 'payload' })
+      pipe.transform({}, { type: 'body', metatype: PayloadDto })
       throw new Error('expected validation to fail')
     } catch (error) {
-      expect(error).toBeInstanceOf(BadRequestException)
-      const badRequest = error as InstanceType<typeof BadRequestException>
-      expect(badRequest.getResponse()).toMatchObject({
-        details: {
-          errors: {
-            name: ['required'],
-          },
-        },
-      })
+      expect(error).toBeInstanceOf(HttpException)
+      const response = (error as HttpException).getResponse<{
+        statusCode: number
+        errors: Record<string, string[]>
+        meta: Record<string, unknown>
+      }>()
+      expect(response.statusCode).toBe(422)
+      expect(response.errors.name).toEqual(['required'])
+      expect(response.meta.target).toBe('PayloadDto')
     }
+  })
+
+  it('relaxes schemas when whitelist is disabled', () => {
+    @ZodSchema(
+      z.object({
+        name: z.string(),
+      }),
+    )
+    class RelaxedDto {
+      name!: string
+    }
+
+    const pipe = new ZodValidationPipe({ whitelist: false, transform: false })
+    const result = pipe.transform(
+      { name: 'test', extra: 'value' },
+      { type: 'body', metatype: RelaxedDto },
+    ) as Record<string, unknown>
+
+    expect(result.extra).toBe('value')
+
+    expect(() =>
+      pipe.transform('string', { type: 'body', metatype: RelaxedDto }),
+    ).toThrow(HttpException)
+  })
+
+  it('skips transformation for primitive payloads and aggregates errors', () => {
+    @ZodSchema(z.string().min(3, 'too short'))
+    class StringDto {
+      value!: string
+    }
+
+    const pipe = new ZodValidationPipe({
+      transform: true,
+      whitelist: false,
+      forbidUnknownValues: false,
+      stopAtFirstError: false,
+    })
+
+    const ok = pipe.transform('valid', {
+      type: 'body',
+      metatype: StringDto,
+    })
+    expect(ok).toBe('valid')
+
+    try {
+      pipe.transform('no', { type: 'body', metatype: StringDto })
+      throw new Error('Expected validation failure')
+    } catch (error) {
+      expect(error).toBeInstanceOf(HttpException)
+      const response = (error as HttpException).getResponse<{
+        errors: Record<string, string[]>
+      }>()
+      expect(response.errors.root).toContain('too short')
+    }
+  })
+
+  it('omits debug metadata when diagnostics are disabled', () => {
+    @ZodSchema(z.object({ label: z.string().min(2) }))
+    class MinimalDto {
+      label!: string
+    }
+
+    const pipe = new ZodValidationPipe({ enableDebugMessages: false })
+
+    try {
+      pipe.transform({}, { type: 'body', metatype: MinimalDto })
+      throw new Error('Expected validation error')
+    } catch (error) {
+      const response = (error as HttpException).getResponse<
+        Record<string, unknown>
+      >()
+      expect(response).not.toHaveProperty('meta')
+    }
+
+    try {
+      pipe.transform(null, { type: 'body', metatype: MinimalDto })
+      throw new Error('Expected validation error')
+    } catch (error) {
+      const response = (error as HttpException).getResponse<
+        Record<string, unknown>
+      >()
+      expect(response).not.toHaveProperty('meta')
+    }
+  })
+
+  it('derives configured pipe class names from transform option', () => {
+    const PassivePipe = createZodValidationPipe({ transform: false })
+    const ActivePipe = createZodValidationPipe()
+
+    expect(PassivePipe.name).toBe('ZodValidationPipe_Passive')
+    expect(ActivePipe.name).toBe('ZodValidationPipe_Active')
   })
 
   it('creates execution contexts exposing handler and class', () => {
@@ -258,9 +396,42 @@ describe('decorators and helpers', () => {
   })
 })
 
-it('names zod validation pipe anonymous when description missing', () => {
-  const schema = z.object({ value: z.string() })
-  const Pipe = createZodValidationPipe(schema)
+it('derives DTO class names from schema descriptions', () => {
+  const described = z.object({ value: z.string() }).describe('Sample')
+  const DescribedDto = createZodDto(described)
+  expect(DescribedDto.name).toBe('SampleDto')
 
-  expect(Pipe.name).toBe('ZodValidationPipe_Anonymous')
+  const anonymous = z.object({ value: z.string() })
+  const AnonymousDto = createZodDto(anonymous)
+  expect(AnonymousDto.name).toBe('AnonymousZodDto')
+
+  const instance = new DescribedDto({ value: 'hello' })
+  expect(instance).toBeInstanceOf(DescribedDto)
+  expect((instance as any).value).toBe('hello')
+})
+
+it('returns untransformed values when metatype is missing', () => {
+  const pipe = new ZodValidationPipe({ transform: true })
+  const result = pipe.transform('raw', { type: 'query', data: 'test' })
+  expect(result).toBe('raw')
+})
+
+it('creates extendable DTO classes with schema metadata', () => {
+  const schema = z
+    .object({ id: z.number(), label: z.string() })
+    .describe('Extend')
+  class ExtendedDto extends createZodSchemaDto(schema) {}
+
+  const dto = new ExtendedDto({ id: 1, label: 'test' })
+  expect(dto).toEqual({ id: 1, label: 'test' })
+  expect(getZodSchema(ExtendedDto)).toBe(schema)
+})
+
+it('allows overriding DTO class names when creating from schema', () => {
+  const schema = z.object({ value: z.boolean() })
+  const CustomDto = createZodSchemaDto(schema, { name: 'CustomZodDto' })
+
+  expect(CustomDto.name).toBe('CustomZodDto')
+  const dto = new CustomDto({ value: true })
+  expect(dto).toEqual({ value: true })
 })

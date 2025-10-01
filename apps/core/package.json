@@ -8,8 +8,7 @@
   "main": "index.ts",
   "scripts": {
     "build": "vite build",
-    "demo": "vite-node src/demo.ts",
-    "dev": "vite-node -w src/index.ts",
+    "dev": "nodemon",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -23,10 +22,11 @@
   },
   "devDependencies": {
     "@types/node": "^22.9.3",
+    "nodemon": "3.1.10",
+    "unplugin-swc": "1.5.7",
     "vite": "7.1.7",
     "vite-node": "3.2.4",
-    "vite-plugin-node": "7.0.0",
     "vite-tsconfig-paths": "5.1.4",
-    "vitest": "^2.1.2"
+    "vitest": "3.2.4"
   }
 }

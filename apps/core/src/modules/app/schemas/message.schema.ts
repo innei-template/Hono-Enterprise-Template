@@ -1,3 +1,4 @@
+import { createZodSchemaDto } from '@hono-template/framework'
 import { z } from 'zod'
 
 export const createMessageSchema = z
@@ -10,3 +11,5 @@ export const createMessageSchema = z
   .describe('CreateMessage')
 
 export type CreateMessageInput = z.infer<typeof createMessageSchema>
+
+export class CreateMessageDto extends createZodSchemaDto(createMessageSchema) {}

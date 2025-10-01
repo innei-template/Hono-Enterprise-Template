@@ -1,24 +1,12 @@
 import { Module } from '@hono-template/framework'
 
+import { ApiKeyGuard } from '../../guards/api-key.guard'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
-import { AllExceptionsFilter } from './filters/all-exceptions.filter'
-import { ApiKeyGuard } from './guards/api-key.guard'
-import { LoggingInterceptor } from './interceptors/logging.interceptor'
-import { CreateMessagePipe } from './pipes/create-message.pipe'
 import { ParseIntPipe } from './pipes/parse-int.pipe'
-import { ValidationPipe } from './pipes/validation.pipe'
 
 @Module({
   controllers: [AppController],
-  providers: [
-    AppService,
-    ApiKeyGuard,
-    LoggingInterceptor,
-    ValidationPipe,
-    ParseIntPipe,
-    CreateMessagePipe,
-    AllExceptionsFilter,
-  ],
+  providers: [AppService, ParseIntPipe, ApiKeyGuard],
 })
 export class AppModule {}

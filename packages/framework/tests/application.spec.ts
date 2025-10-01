@@ -1,11 +1,14 @@
+import 'reflect-metadata'
+
 import { ReadableStream } from 'node:stream/web'
 
 import type { Context } from 'hono'
-import { inject, injectable } from 'tsyringe'
+import { injectable } from 'tsyringe'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
 import type {
+ArgumentMetadata, 
   CanActivate,
   Constructor,
   ExceptionFilter,
@@ -13,8 +16,7 @@ import type {
   HonoHttpApplication,
   NestInterceptor,
   PipeTransform,
-  RouteParamMetadataItem,
-} from '../src'
+  RouteParamMetadataItem} from '../src'
 import {
   BadRequestException,
   Body,
@@ -22,7 +24,6 @@ import {
   Controller,
   createApplication,
   createLogger,
-  createZodValidationPipe,
   Delete,
   Get,
   Headers,
@@ -36,6 +37,8 @@ import {
   UseFilters,
   UseGuards,
   UseInterceptors,
+  ZodSchema,
+  ZodValidationPipe,
 } from '../src'
 import { ROUTE_ARGS_METADATA } from '../src/constants'
 import type { ArgumentsHost, CallHandler } from '../src/interfaces'
@@ -78,7 +81,7 @@ class SharedService {
 
 @injectable()
 class DemoService {
-  constructor(@inject(SharedService) private readonly shared: SharedService) {}
+  constructor(private readonly shared: SharedService) {}
 
   greet(name: string) {
     return `Hello ${name.toUpperCase()} from ${this.shared.getValue()}`
@@ -111,6 +114,27 @@ class GlobalPipe implements PipeTransform<unknown> {
       return `${value}-global`
     }
     return value
+  }
+}
+
+@injectable()
+class TrackingZodPipe extends ZodValidationPipe {
+  constructor() {
+    super({
+      transform: true,
+      whitelist: true,
+      errorHttpStatusCode: 422,
+      forbidUnknownValues: true,
+      enableDebugMessages: true,
+      stopAtFirstError: true,
+    })
+  }
+
+  transform(value: unknown, metadata: ArgumentMetadata) {
+    callOrder.push(
+      `zod-${metadata.type}:${metadata.metatype?.name ?? 'unknown'}`,
+    )
+    return super.transform(value, metadata)
   }
 }
 
@@ -185,18 +209,22 @@ class MethodExceptionFilter implements ExceptionFilter {
 
 const BodySchema = z
   .object({
-    message: z.string(),
+    message: z.string({ required_error: 'message required' }),
     tags: z.array(z.string()).default([]),
   })
   .describe('BodySchema')
 
-const ZodBodyPipe = createZodValidationPipe(BodySchema)
+@ZodSchema(BodySchema)
+class BodyDto {
+  message!: string
+  tags!: string[]
+}
 
-@injectable()
-@Controller('demo')
 @UseInterceptors(MethodInterceptor)
+@Controller('demo')
+@injectable()
 class DemoController {
-  constructor(@inject(DemoService) private readonly service: DemoService) {}
+  constructor(private readonly service: DemoService) {}
 
   @Get('/')
   async greet(
@@ -288,7 +316,7 @@ class DemoController {
   @UseGuards(AllowGuard)
   async double(
     @Param('id', DoublePipe) id: number,
-    @Body(undefined, ZodBodyPipe) payload: { message: string; tags: string[] },
+    @Body() payload: BodyDto,
     @Body() rawBody: unknown,
     @Headers() headers: Record<string, string>,
     context: Context,
@@ -297,7 +325,8 @@ class DemoController {
     return {
       id,
       payload,
-      sameReference: payload === rawBody,
+      isDtoInstance: payload instanceof BodyDto,
+      rawBody,
       headerCount: Object.keys(headers).length,
     }
   }
@@ -319,9 +348,15 @@ class DemoController {
   }
 }
 
+Reflect.defineMetadata(
+  'design:paramtypes',
+  [Number, BodyDto, Object, Object, Object],
+  DemoController.prototype,
+  'double',
+)
+
 @Module({
   providers: [SharedService],
-  exports: [SharedService],
 })
 class SharedModule {}
 
@@ -333,12 +368,12 @@ class SharedModule {}
     ApiKeyGuard,
     AllowGuard,
     GlobalPipe,
+    TrackingZodPipe,
     DoublePipe,
     GlobalInterceptor,
     MethodInterceptor,
     GlobalExceptionFilter,
     MethodExceptionFilter,
-    ZodBodyPipe,
   ],
 })
 class RootModule {}
@@ -361,10 +396,20 @@ describe('HonoHttpApplication end-to-end', () => {
   let fetcher: (request: Request) => Promise<Response>
   let app: HonoHttpApplication
 
+  it('emits metadata for DTO parameters', () => {
+    const paramTypes = (Reflect.getMetadata(
+      'design:paramtypes',
+      DemoController.prototype,
+      'double',
+    ) ?? []) as Constructor[]
+    expect(paramTypes.length).toBeGreaterThan(1)
+    expect(paramTypes[1]).toBe(BodyDto)
+  })
+
   beforeAll(async () => {
     app = await createApplication(RootModule, { globalPrefix: '/api' })
     app.useGlobalGuards(ApiKeyGuard)
-    app.useGlobalPipes(GlobalPipe)
+    app.useGlobalPipes(GlobalPipe, TrackingZodPipe)
     app.useGlobalInterceptors(GlobalInterceptor)
     app.useGlobalFilters(GlobalExceptionFilter)
     fetcher = (request) => Promise.resolve(app.getInstance().fetch(request))
@@ -465,11 +510,42 @@ describe('HonoHttpApplication end-to-end', () => {
     expect(json).toMatchObject({
       id: 10,
       payload: { message: 'payload', tags: ['a'] },
-      sameReference: false,
+      isDtoInstance: true,
+    })
+    expect(json.rawBody).toEqual({ message: 'payload', tags: ['a'] })
+    expect(callOrder).toContain('zod-body:BodyDto')
+  })
+
+  it('surfaces validation errors for DTO payloads', async () => {
+    const response = await fetcher(
+      createRequest('/api/demo/double/5', {
+        method: 'POST',
+        headers: {
+          ...authorizedHeaders({
+            'x-allow': 'yes',
+            'content-type': 'application/json',
+          }),
+        },
+        body: JSON.stringify({ tags: ['a'] }),
+      }),
+    )
+
+    expect(response.status).toBe(422)
+    const json = await response.json()
+    expect(json).toMatchObject({
+      statusCode: 422,
+      message: 'Validation failed',
+      errors: {
+        message: ['message required'],
+      },
+      meta: {
+        target: 'BodyDto',
+        paramType: 'body',
+      },
     })
   })
 
-  it('returns null body when payload is not json', async () => {
+  it('rejects body when payload is not json', async () => {
     const response = await fetcher(
       createRequest('/api/demo/plain', {
         method: 'POST',
@@ -481,11 +557,15 @@ describe('HonoHttpApplication end-to-end', () => {
       }),
     )
 
+    expect(response.status).toBe(422)
     const json = await response.json()
-    expect(json).toEqual({ payload: null })
+    expect(json).toMatchObject({
+      statusCode: 422,
+      message: 'Payload must be a JSON object',
+    })
   })
 
-  it('returns null body when content-type header is missing', async () => {
+  it('rejects body when content-type header is missing', async () => {
     const response = await fetcher(
       createRequest('/api/demo/plain', {
         method: 'POST',
@@ -493,7 +573,11 @@ describe('HonoHttpApplication end-to-end', () => {
       }),
     )
 
-    expect(await response.json()).toEqual({ payload: null })
+    expect(response.status).toBe(422)
+    expect(await response.json()).toMatchObject({
+      statusCode: 422,
+      message: 'Payload must be a JSON object',
+    })
   })
 
   it('caches parsed body across multiple parameters', async () => {

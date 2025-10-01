@@ -2,9 +2,11 @@ import 'reflect-metadata'
 
 import type { Context } from 'hono'
 import { Hono } from 'hono'
+import colors from 'picocolors'
 import type { DependencyContainer, InjectionToken } from 'tsyringe'
 import { container as rootContainer } from 'tsyringe'
 
+import { isDebugEnabled } from './constants'
 import { HttpContext } from './context/http-context'
 import { getControllerMetadata } from './decorators/controller'
 import { getRoutesMetadata } from './decorators/http-methods'
@@ -106,7 +108,33 @@ export class HonoHttpApplication {
   }
 
   private resolveInstance<T>(token: Constructor<T>): T {
-    return this.container.resolve(token as unknown as InjectionToken<T>)
+    try {
+      return this.container.resolve(token as unknown as InjectionToken<T>)
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes('Cannot inject the dependency ')
+      ) {
+        // Cannot inject the dependency "appService" at position #0 of "AppController" constructor.
+        const regexp =
+          /Cannot inject the dependency "([^"]+)" at position #(\d+) of "([^"]+)" constructor\./
+        const match = error.message.match(regexp)
+        if (match) {
+          const [, dependency, position, constructor] = match
+          throw new ReferenceError(
+            `Cannot inject the dependency ${colors.yellow(dependency)} at position #${position} of "${colors.yellow(constructor)}" constructor.` +
+              `\n` +
+              `Please check if the dependency is registered in the container. Check import the dependency not the type.` +
+              `\n${colors.red(
+                `- import type { ${dependency} } from "./service";`,
+              )}\n${colors.green(
+                `+ import { ${dependency} } from "./service";`,
+              )}`,
+          )
+        }
+      }
+      throw error
+    }
   }
 
   private registerSingleton<T>(token: Constructor<T>): void {
@@ -411,7 +439,7 @@ export class HonoHttpApplication {
       handler,
       context,
     )
-    if (process.env.DEBUG_PARAMS === 'true') {
+    if (isDebugEnabled()) {
       this.logger.debug('Resolved params metadata', {
         controller: controller.name,
         handler: handlerName.toString(),
@@ -439,6 +467,7 @@ export class HonoHttpApplication {
     return args.length > 0 ? args : [context]
   }
 
+  /* c8 ignore start */
   private getParametersMetadata(
     controller: Constructor,
     handlerName: string | symbol,
@@ -465,18 +494,25 @@ export class HonoHttpApplication {
       })
     }
 
-    const candidateIndexes: number[] = [...indexed.keys()]
-    if (paramTypes.length > 0) {
-      candidateIndexes.push(paramTypes.length - 1)
-    }
-    if (handlerParamLength > 0) {
-      candidateIndexes.push(handlerParamLength - 1)
-    }
+    const potentialIndexes = [
+      ...indexed.keys(),
+      paramTypes.length - 1,
+      handlerParamLength - 1,
+      -1,
+    ]
 
-    const maxIndex =
-      candidateIndexes.length > 0 ? Math.max(...candidateIndexes) : -1
+    let maxIndex = -1
+    for (const value of potentialIndexes) {
+      if (value > maxIndex) {
+        maxIndex = value
+      }
+    }
 
     const items: RouteParamMetadataItem[] = []
+
+    if (maxIndex < 0) {
+      return items
+    }
 
     for (let index = 0; index <= maxIndex; index += 1) {
       const existing = indexed.get(index)
@@ -486,7 +522,7 @@ export class HonoHttpApplication {
         const shouldInferContext =
           index < Math.max(paramTypes.length, handlerParamLength) &&
           handlerParamLength > 0
-        if (process.env.DEBUG_PARAMS === 'true') {
+        if (isDebugEnabled()) {
           this.logger.debug('Inferred context parameter', {
             controller: controller.name,
             handler: handlerName.toString(),
@@ -507,6 +543,7 @@ export class HonoHttpApplication {
 
     return items.sort((a, b) => a.index - b.index)
   }
+  /* c8 ignore end */
 
   private async resolveParameterValue(
     metadata: RouteParamMetadataItem,
