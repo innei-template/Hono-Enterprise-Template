@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { createLogger } from '../src'
 
 describe('PrettyLogger', () => {
@@ -29,56 +30,86 @@ describe('PrettyLogger', () => {
   })
 
   it('formats messages with namespace and preserves arguments', () => {
-    const logger = createLogger('Test', { writer: baseWriter, clock: () => fixedDate, colors: false })
+    const logger = createLogger('Test', {
+      writer: baseWriter,
+      clock: () => fixedDate,
+      colors: false,
+    })
 
     logger.info('hello', { foo: 'bar' })
 
     expect(baseWriter.info).toHaveBeenCalledTimes(1)
-    expect(baseWriter.info.mock.calls[0][0]).toBe('2025-01-01T00:00:00.000Z [i] [Test]')
+    expect(baseWriter.info.mock.calls[0][0]).toBe(
+      '2025-01-01T00:00:00.000Z [i] [Test]',
+    )
     expect(baseWriter.info.mock.calls[0][1]).toBe('hello')
     expect(baseWriter.info.mock.calls[0][2]).toEqual({ foo: 'bar' })
   })
 
   it('invokes base log level handler', () => {
-    const logger = createLogger('Test', { writer: baseWriter, clock: () => fixedDate, colors: false })
+    const logger = createLogger('Test', {
+      writer: baseWriter,
+      clock: () => fixedDate,
+      colors: false,
+    })
 
     logger.log('general message')
 
     expect(baseWriter.log).toHaveBeenCalledTimes(1)
-    expect(baseWriter.log.mock.calls[0][0]).toBe('2025-01-01T00:00:00.000Z [•] [Test]')
+    expect(baseWriter.log.mock.calls[0][0]).toBe(
+      '2025-01-01T00:00:00.000Z [•] [Test]',
+    )
     expect(baseWriter.log.mock.calls[0][1]).toBe('general message')
   })
 
   it('supports extending namespaces', () => {
-    const logger = createLogger('Parent', { writer: baseWriter, clock: () => fixedDate, colors: false })
+    const logger = createLogger('Parent', {
+      writer: baseWriter,
+      clock: () => fixedDate,
+      colors: false,
+    })
     const child = logger.extend('Child')
 
     child.warn('issue detected')
 
     expect(baseWriter.warn).toHaveBeenCalledTimes(1)
-    expect(baseWriter.warn.mock.calls[0][0]).toBe('2025-01-01T00:00:00.000Z [!] [Parent:Child]')
+    expect(baseWriter.warn.mock.calls[0][0]).toBe(
+      '2025-01-01T00:00:00.000Z [!] [Parent:Child]',
+    )
     expect(baseWriter.warn.mock.calls[0][1]).toBe('issue detected')
   })
 
   it('extends root logger without namespace', () => {
-    const logger = createLogger(undefined, { writer: baseWriter, clock: () => fixedDate, colors: false })
+    const logger = createLogger(undefined, {
+      writer: baseWriter,
+      clock: () => fixedDate,
+      colors: false,
+    })
     const child = logger.extend('child')
 
     child.info('hello')
 
     expect(baseWriter.info).toHaveBeenCalledTimes(1)
-    expect(baseWriter.info.mock.calls[0][0]).toBe('2025-01-01T00:00:00.000Z [i] [child]')
+    expect(baseWriter.info.mock.calls[0][0]).toBe(
+      '2025-01-01T00:00:00.000Z [i] [child]',
+    )
     expect(baseWriter.info.mock.calls[0][1]).toBe('hello')
   })
 
   it('falls back to log when specific level is unavailable', () => {
     const customWriter = { log: vi.fn() }
-    const logger = createLogger(undefined, { writer: customWriter, clock: () => fixedDate, colors: false })
+    const logger = createLogger(undefined, {
+      writer: customWriter,
+      clock: () => fixedDate,
+      colors: false,
+    })
 
     logger.debug('fine-grained message')
 
     expect(customWriter.log).toHaveBeenCalledTimes(1)
-    expect(customWriter.log.mock.calls[0][0]).toBe('2025-01-01T00:00:00.000Z [?]')
+    expect(customWriter.log.mock.calls[0][0]).toBe(
+      '2025-01-01T00:00:00.000Z [?]',
+    )
     expect(customWriter.log.mock.calls[0][1]).toBe('fine-grained message')
   })
 
@@ -127,11 +158,17 @@ describe('PrettyLogger', () => {
 
   it('returns text labels when running in CI', () => {
     process.env.CI = 'true'
-    const logger = createLogger('CI', { writer: baseWriter, clock: () => fixedDate, colors: false })
+    const logger = createLogger('CI', {
+      writer: baseWriter,
+      clock: () => fixedDate,
+      colors: false,
+    })
 
     logger.error('failure')
 
     expect(baseWriter.error).toHaveBeenCalledTimes(1)
-    expect(baseWriter.error.mock.calls[0][0]).toBe('2025-01-01T00:00:00.000Z [ERROR] [CI]')
+    expect(baseWriter.error.mock.calls[0][0]).toBe(
+      '2025-01-01T00:00:00.000Z [ERROR] [CI]',
+    )
   })
 })

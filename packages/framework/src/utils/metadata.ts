@@ -3,42 +3,54 @@ import {
   GUARDS_METADATA,
   INTERCEPTORS_METADATA,
   PIPES_METADATA,
-} from '../constants';
+} from '../constants'
+import { getEnhancerMetadata } from '../decorators/enhancers'
 import type {
   CanActivate,
   Constructor,
   ExceptionFilter,
   NestInterceptor,
   PipeTransform,
-} from '../interfaces';
-import { getEnhancerMetadata } from '../decorators/enhancers';
+} from '../interfaces'
 
-const collectEnhancers = <T>(
+function collectEnhancers<T>(
   metadataKey: symbol,
   controller: Constructor,
   propertyKey: string | symbol,
-): Constructor<T>[] => {
-  const classLevel = getEnhancerMetadata<T>(metadataKey, controller);
-  const methodLevel = getEnhancerMetadata<T>(metadataKey, controller.prototype, propertyKey);
-  return [...classLevel, ...methodLevel];
-};
+): Array<Constructor<T>> {
+  const classLevel = getEnhancerMetadata<T>(metadataKey, controller)
+  const methodLevel = getEnhancerMetadata<T>(
+    metadataKey,
+    controller.prototype,
+    propertyKey,
+  )
+  return [...classLevel, ...methodLevel]
+}
 
-export const collectGuards = (
+export function collectGuards(
   controller: Constructor,
   propertyKey: string | symbol,
-): Constructor<CanActivate>[] => collectEnhancers(GUARDS_METADATA, controller, propertyKey);
+): Array<Constructor<CanActivate>> {
+  return collectEnhancers(GUARDS_METADATA, controller, propertyKey)
+}
 
-export const collectPipes = (
+export function collectPipes(
   controller: Constructor,
   propertyKey: string | symbol,
-): Constructor<PipeTransform>[] => collectEnhancers(PIPES_METADATA, controller, propertyKey);
+): Array<Constructor<PipeTransform>> {
+  return collectEnhancers(PIPES_METADATA, controller, propertyKey)
+}
 
-export const collectInterceptors = (
+export function collectInterceptors(
   controller: Constructor,
   propertyKey: string | symbol,
-): Constructor<NestInterceptor>[] => collectEnhancers(INTERCEPTORS_METADATA, controller, propertyKey);
+): Array<Constructor<NestInterceptor>> {
+  return collectEnhancers(INTERCEPTORS_METADATA, controller, propertyKey)
+}
 
-export const collectFilters = (
+export function collectFilters(
   controller: Constructor,
   propertyKey: string | symbol,
-): Constructor<ExceptionFilter>[] => collectEnhancers(EXCEPTION_FILTERS_METADATA, controller, propertyKey);
+): Array<Constructor<ExceptionFilter>> {
+  return collectEnhancers(EXCEPTION_FILTERS_METADATA, controller, propertyKey)
+}

@@ -1,11 +1,28 @@
 import { ReadableStream } from 'node:stream/web'
+
 import type { Context } from 'hono'
-import { describe, beforeAll, beforeEach, expect, it } from 'vitest'
 import { inject, injectable } from 'tsyringe'
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { z } from 'zod'
+
+import type {
+  CanActivate,
+  Constructor,
+  ExceptionFilter,
+  ExecutionContext,
+  HonoHttpApplication,
+  NestInterceptor,
+  PipeTransform,
+  RouteParamMetadataItem,
+} from '../src'
 import {
+  BadRequestException,
   Body,
   ContextParam,
   Controller,
+  createApplication,
+  createLogger,
+  createZodValidationPipe,
   Delete,
   Get,
   Headers,
@@ -19,35 +36,24 @@ import {
   UseFilters,
   UseGuards,
   UseInterceptors,
-  UsePipes,
-  createApplication,
-  HonoHttpApplication,
-  createLogger,
-  createZodValidationPipe,
-  BadRequestException,
-  type CanActivate,
-  type ExceptionFilter,
-  type ExecutionContext,
-  type NestInterceptor,
-  type PipeTransform,
-  type RouteParamMetadataItem,
-  type Constructor,
 } from '../src'
-import type { CallHandler } from '../src/interfaces'
-import type { ArgumentsHost } from '../src/interfaces'
-import { z } from 'zod'
 import { ROUTE_ARGS_METADATA } from '../src/constants'
+import type { ArgumentsHost, CallHandler } from '../src/interfaces'
 
 const BASE_URL = 'http://localhost'
 
-const createRequest = (path: string, init?: RequestInit) =>
-  new Request(`${BASE_URL}${path}`, init)
+function createRequest(path: string, init?: RequestInit) {
+  return new Request(`${BASE_URL}${path}`, init)
+}
 
 const callOrder: string[] = []
 
-const FactoryParam =
-  () =>
-  (target: object, propertyKey: string | symbol, parameterIndex: number) => {
+function FactoryParam() {
+  return (
+    target: object,
+    propertyKey: string | symbol,
+    parameterIndex: number,
+  ) => {
     const existing = (Reflect.getMetadata(
       ROUTE_ARGS_METADATA,
       target,
@@ -61,6 +67,7 @@ const FactoryParam =
     })
     Reflect.defineMetadata(ROUTE_ARGS_METADATA, existing, target, propertyKey)
   }
+}
 
 @injectable()
 class SharedService {
@@ -158,7 +165,7 @@ class GlobalExceptionFilter implements ExceptionFilter {
       const ctx = host.getContext<Context>()
       return ctx.json({ handled: 'custom' }, 418)
     }
-    return undefined
+    return
   }
 }
 
@@ -765,7 +772,9 @@ describe('HonoHttpApplication internals', () => {
     registerSingleton(Anonymous as Constructor)
     registerSingleton(Anonymous as Constructor)
 
-    expect(app.getContainer().isRegistered(Temp as Constructor, true)).toBe(true)
+    expect(app.getContainer().isRegistered(Temp as Constructor, true)).toBe(
+      true,
+    )
   })
 
   it('normalizes empty paths to root', async () => {

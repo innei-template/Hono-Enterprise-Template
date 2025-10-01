@@ -1,23 +1,22 @@
-import { injectable } from 'tsyringe';
-import type { ArgumentsHost, ExceptionFilter } from '@hono-template/framework'
+import type { ExceptionFilter } from '@hono-template/framework'
 import { HttpException } from '@hono-template/framework'
+import { injectable } from 'tsyringe'
 
 @injectable()
 export class AllExceptionsFilter implements ExceptionFilter {
-  catch(exception: unknown, host: ArgumentsHost) {
-    const context = host.getContext();
-
+  catch(exception: unknown) {
     if (exception instanceof HttpException) {
       return new Response(JSON.stringify(exception.getResponse()), {
         status: exception.getStatus(),
         headers: {
           'content-type': 'application/json',
         },
-      });
+      })
     }
 
-    const error = exception instanceof Error ? exception : new Error(String(exception));
-    console.error('Unhandled exception caught by filter', error);
+    const error =
+      exception instanceof Error ? exception : new Error(String(exception))
+    console.error('Unhandled exception caught by filter', error)
 
     return new Response(
       JSON.stringify({
@@ -30,6 +29,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
           'content-type': 'application/json',
         },
       },
-    );
+    )
   }
 }

@@ -1,31 +1,32 @@
 {
   "name": "core",
+  "type": "module",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "packageManager": "pnpm@10.17.1",
+  "author": "Innei",
+  "license": "MIT",
+  "main": "index.ts",
   "scripts": {
-    "dev": "vite-node -w src/index.ts",
+    "build": "vite build",
     "demo": "vite-node src/demo.ts",
+    "dev": "vite-node -w src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "keywords": [],
-  "author": "Innei",
-  "license": "MIT",
-  "packageManager": "pnpm@10.17.1",
-  "devDependencies": {
-    "@types/node": "^22.9.3",
-    "vite": "7.1.7",
-    "vite-node": "3.2.4",
-    "vite-tsconfig-paths": "5.1.4",
-    "vitest": "^2.1.2"
-  },
   "dependencies": {
+    "@hono-template/framework": "workspace:*",
     "@hono/node-server": "^1.13.4",
     "hono": "4.9.9",
     "reflect-metadata": "0.1.13",
     "tsyringe": "4.10.0",
-    "zod": "^3.23.8",
-    "@hono-template/framework": "workspace:*"
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.3",
+    "vite": "7.1.7",
+    "vite-node": "3.2.4",
+    "vite-plugin-node": "7.0.0",
+    "vite-tsconfig-paths": "5.1.4",
+    "vitest": "^2.1.2"
   }
 }

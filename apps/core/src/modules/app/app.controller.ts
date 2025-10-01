@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { Context } from 'hono'
-import { inject, injectable } from 'tsyringe'
+
 import {
   Body,
   ContextParam,
@@ -13,10 +12,13 @@ import {
   Query,
   UseGuards,
 } from '@hono-template/framework'
+import type { Context } from 'hono'
+import { inject, injectable } from 'tsyringe'
+
 import { AppService } from './app.service'
 import { ApiKeyGuard } from './guards/api-key.guard'
-import { ParseIntPipe } from './pipes/parse-int.pipe'
 import { CreateMessagePipe } from './pipes/create-message.pipe'
+import { ParseIntPipe } from './pipes/parse-int.pipe'
 import type { CreateMessageInput } from './schemas/message.schema'
 
 @Controller('app')

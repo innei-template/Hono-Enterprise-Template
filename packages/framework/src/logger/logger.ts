@@ -56,7 +56,10 @@ export class PrettyLogger {
   private readonly timestampColor: Colorizer
   private readonly useTextLabels: boolean
 
-  constructor(private readonly namespace?: string, options: LoggerOptions = {}) {
+  constructor(
+    private readonly namespace?: string,
+    options: LoggerOptions = {},
+  ) {
     this.writer = options.writer ?? console
     this.clock = options.clock ?? defaultClock
     this.colorsEnabled = options.colors ?? pc.isColorSupported
@@ -93,7 +96,9 @@ export class PrettyLogger {
   }
 
   extend(childNamespace: string): PrettyLogger {
-    const combined = this.namespace ? `${this.namespace}:${childNamespace}` : childNamespace
+    const combined = this.namespace
+      ? `${this.namespace}:${childNamespace}`
+      : childNamespace
     return new PrettyLogger(combined, {
       writer: this.writer,
       clock: this.clock,
@@ -113,7 +118,9 @@ export class PrettyLogger {
     const formatTimestamp = this.colorsEnabled ? this.timestampColor : identity
     const formatNamespace = this.colorsEnabled ? this.namespaceColor : identity
 
-    const labelValue = this.useTextLabels ? levelTextLabels[level].padEnd(5, ' ') : levelSymbols[level]
+    const labelValue = this.useTextLabels
+      ? levelTextLabels[level].padEnd(5, ' ')
+      : levelSymbols[level]
     const segments = [
       formatTimestamp(timestamp),
       `[${formatLevel(labelValue)}]`,
@@ -133,9 +140,14 @@ export class PrettyLogger {
       return this.writer.log
     }
 
+    // eslint-disable-next-line no-console
     return console.log
   }
 }
 
-export const createLogger = (namespace?: string, options?: LoggerOptions): PrettyLogger =>
-  new PrettyLogger(namespace, options)
+export function createLogger(
+  namespace?: string,
+  options?: LoggerOptions,
+): PrettyLogger {
+  return new PrettyLogger(namespace, options)
+}

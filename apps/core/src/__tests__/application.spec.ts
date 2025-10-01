@@ -1,14 +1,19 @@
-import { beforeAll, describe, expect, it } from 'vitest'
 import type { HonoHttpApplication } from '@hono-template/framework'
+import { beforeAll, describe, expect, it } from 'vitest'
+
 import { createConfiguredApp as createAppFactory } from '../app.factory'
 
 const BASE_URL = 'http://localhost'
 
-const buildRequest = (path: string, init?: RequestInit) => new Request(`${BASE_URL}${path}`, init)
+function buildRequest (path: string, init?: RequestInit) {
+  return new Request(`${BASE_URL}${path}`, init)
+}
 
-const authorizedHeaders = () => ({
-  'x-api-key': process.env.API_KEY ?? 'secret-key',
-})
+function authorizedHeaders() {
+  return {
+    'x-api-key': process.env.API_KEY ?? 'secret-key',
+  }
+}
 
 describe('HonoHttpApplication integration', () => {
   let app: HonoHttpApplication
@@ -16,7 +21,8 @@ describe('HonoHttpApplication integration', () => {
 
   beforeAll(async () => {
     app = await createAppFactory()
-    fetcher = (request: Request) => Promise.resolve(app.getInstance().fetch(request))
+    fetcher = (request: Request) =>
+      Promise.resolve(app.getInstance().fetch(request))
   })
 
   const json = async (response: Response) => ({
@@ -40,9 +46,7 @@ describe('HonoHttpApplication integration', () => {
   })
 
   it('enforces guards when API key missing', async () => {
-    const response = await fetcher(
-      buildRequest('/api/app/profiles/5'),
-    )
+    const response = await fetcher(buildRequest('/api/app/profiles/5'))
 
     const body = await json(response)
     expect(body.status).toBe(401)
@@ -144,7 +148,10 @@ describe('HonoHttpApplication integration', () => {
 
     const body = await json(response)
     expect(body.status).toBe(200)
-    expect(body.data).toMatchObject({ same: true, path: '/api/app/context-check' })
+    expect(body.data).toMatchObject({
+      same: true,
+      path: '/api/app/context-check',
+    })
   })
 
   it('delegates unhandled errors to the exception filter', async () => {
@@ -157,6 +164,9 @@ describe('HonoHttpApplication integration', () => {
 
     const body = await json(response)
     expect(body.status).toBe(500)
-    expect(body.data).toMatchObject({ statusCode: 500, message: 'Internal server error' })
+    expect(body.data).toMatchObject({
+      statusCode: 500,
+      message: 'Internal server error',
+    })
   })
 })

@@ -1,14 +1,32 @@
 {
   "name": "hono-template",
+  "type": "module",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {},
-  "keywords": [],
+  "packageManager": "pnpm@10.17.1",
   "author": "Innei",
   "license": "MIT",
-  "packageManager": "pnpm@10.17.1",
+  "main": "index.js",
+  "scripts": {
+    "dev": "pnpm --filter core dev",
+    "lint": "eslint . --fix",
+    "prepare": "simple-git-hooks"
+  },
+  "dependencies": {
+    "prettier": "3.6.2"
+  },
   "devDependencies": {
+    "eslint": "9.36.0",
+    "eslint-config-hyoban": "4.0.10",
+    "jiti": "2.6.1",
+    "lint-staged": "16.2.3",
+    "simple-git-hooks": "2.13.1",
     "typescript": "5.9.2"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npx lint-staged"
+  },
+  "lint-staged": {
+    "*": "eslint --fix",
+    "*.{js,jsx,ts,tsx,json,css,md}": "prettier --write"
   }
 }

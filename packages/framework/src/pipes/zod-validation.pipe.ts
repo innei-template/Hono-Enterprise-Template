@@ -1,14 +1,15 @@
 import { injectable } from 'tsyringe'
 import type { ZodTypeAny } from 'zod'
-import type { ArgumentMetadata, PipeTransform } from '../interfaces'
+
 import { BadRequestException } from '../http-exception'
+import type { ArgumentMetadata, PipeTransform } from '../interfaces'
 
 export interface ZodValidationErrorResponse {
   message: string
   errors: Record<string, string[]>
 }
 
-export const createZodValidationPipe = <TOutput>(schema: ZodTypeAny) => {
+export function createZodValidationPipe<TOutput>(schema: ZodTypeAny) {
   @injectable()
   class ZodValidationPipe implements PipeTransform<unknown, TOutput> {
     transform(value: unknown, metadata: ArgumentMetadata): TOutput {

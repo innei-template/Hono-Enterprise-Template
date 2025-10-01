@@ -1,11 +1,18 @@
 import type { Context } from 'hono'
-import { describe, expect, it } from 'vitest'
 import { injectable } from 'tsyringe'
+import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
+
 import {
   BadRequestException,
   Body,
   Controller,
+  createZodValidationPipe,
   Get,
+  getControllerMetadata,
+  getModuleMetadata,
+  getRouteArgsMetadata,
+  getRoutesMetadata,
   Headers,
   HttpContext,
   HttpException,
@@ -14,20 +21,7 @@ import {
   Query,
   Req,
   RouteParamtypes,
-  createZodValidationPipe,
-  getControllerMetadata,
-  getModuleMetadata,
-  getRouteArgsMetadata,
-  getRoutesMetadata,
 } from '../src'
-import type {
-  ArgumentsHost,
-  CanActivate,
-  ExceptionFilter,
-  NestInterceptor,
-  PipeTransform,
-} from '../src/interfaces'
-import { getEnhancerMetadata, UseFilters, UseGuards, UseInterceptors, UsePipes } from '../src/decorators/enhancers'
 import {
   EXCEPTION_FILTERS_METADATA,
   GUARDS_METADATA,
@@ -35,7 +29,20 @@ import {
   PIPES_METADATA,
   ROUTE_ARGS_METADATA,
 } from '../src/constants'
-import { z } from 'zod'
+import {
+  getEnhancerMetadata,
+  UseFilters,
+  UseGuards,
+  UseInterceptors,
+  UsePipes,
+} from '../src/decorators/enhancers'
+import type {
+  ArgumentsHost,
+  CanActivate,
+  ExceptionFilter,
+  NestInterceptor,
+  PipeTransform,
+} from '../src/interfaces'
 import { createExecutionContext } from '../src/utils/execution-context'
 
 @Module({
@@ -80,16 +87,16 @@ class DemoController {
   @UsePipes(DummyPipe)
   @UseFilters(DummyFilter)
   handler(
-    @Query('name') name: string,
-    @Param('id') id: string,
-    @Headers('x-test') header: string,
-    @Req() request: Request,
+    @Query('name') _name: string,
+    @Param('id') _id: string,
+    @Headers('x-test') _header: string,
+    @Req() _request: Request,
   ) {}
 }
 
 @Controller()
 class ParamController {
-  method(@Body() body: unknown) {}
+  method(@Body() _body: unknown) {}
 }
 
 const createContext = () => ({ id: Math.random() }) as unknown as Context
@@ -107,22 +114,41 @@ describe('decorators and helpers', () => {
 
     const routes = getRoutesMetadata(DemoController)
     expect(routes).toHaveLength(1)
-    expect(routes[0]).toMatchObject({ method: 'GET', path: '/', handlerName: 'handler' })
+    expect(routes[0]).toMatchObject({
+      method: 'GET',
+      path: '/',
+      handlerName: 'handler',
+    })
   })
 
   it('provides defaults when controller metadata is missing', () => {
     class PlainController {}
 
-    const metadata = getControllerMetadata(PlainController as unknown as typeof DemoController)
+    const metadata = getControllerMetadata(
+      PlainController as unknown as typeof DemoController,
+    )
     expect(metadata.prefix).toBe('')
-    expect(getRoutesMetadata(PlainController as unknown as typeof DemoController)).toEqual([])
+    expect(
+      getRoutesMetadata(PlainController as unknown as typeof DemoController),
+    ).toEqual([])
   })
 
   it('tracks enhancers on classes and methods', () => {
     const classGuards = getEnhancerMetadata(GUARDS_METADATA, DemoController)
-    const classInterceptors = getEnhancerMetadata(INTERCEPTORS_METADATA, DemoController)
-    const methodPipes = getEnhancerMetadata(PIPES_METADATA, DemoController.prototype, 'handler')
-    const methodFilters = getEnhancerMetadata(EXCEPTION_FILTERS_METADATA, DemoController.prototype, 'handler')
+    const classInterceptors = getEnhancerMetadata(
+      INTERCEPTORS_METADATA,
+      DemoController,
+    )
+    const methodPipes = getEnhancerMetadata(
+      PIPES_METADATA,
+      DemoController.prototype,
+      'handler',
+    )
+    const methodFilters = getEnhancerMetadata(
+      EXCEPTION_FILTERS_METADATA,
+      DemoController.prototype,
+      'handler',
+    )
 
     expect(classGuards).toEqual([DummyGuard])
     expect(classInterceptors).toEqual([DummyInterceptor])
@@ -149,7 +175,12 @@ describe('decorators and helpers', () => {
       factory: () => 'value',
     }
 
-    Reflect.defineMetadata(ROUTE_ARGS_METADATA, [metadataItem], ParamController.prototype, 'method')
+    Reflect.defineMetadata(
+      ROUTE_ARGS_METADATA,
+      [metadataItem],
+      ParamController.prototype,
+      'method',
+    )
 
     const metadata = getRouteArgsMetadata(ParamController.prototype, 'method')
     expect(metadata[0].type).toBe(RouteParamtypes.CUSTOM)
@@ -173,7 +204,9 @@ describe('decorators and helpers', () => {
     })
 
     expect(() => HttpContext.get()).toThrowError(/not available/)
-    expect(() => HttpContext.setContext(createContext())).toThrowError(/Cannot set context/)
+    expect(() => HttpContext.setContext(createContext())).toThrowError(
+      /Cannot set context/,
+    )
   })
 
   it('creates zod validation pipe for bodies', () => {
@@ -222,12 +255,12 @@ describe('decorators and helpers', () => {
     expect(executionContext.getHandler()).toBe(handler)
     expect(executionContext.getContext()).toBe(honoContext)
     expect(executionContext.switchToHttp().getContext()).toBe(honoContext)
-      })
   })
+})
 
-  it('names zod validation pipe anonymous when description missing', () => {
-    const schema = z.object({ value: z.string() })
-    const Pipe = createZodValidationPipe(schema)
+it('names zod validation pipe anonymous when description missing', () => {
+  const schema = z.object({ value: z.string() })
+  const Pipe = createZodValidationPipe(schema)
 
-    expect(Pipe.name).toBe('ZodValidationPipe_Anonymous')
-  })
+  expect(Pipe.name).toBe('ZodValidationPipe_Anonymous')
+})
