@@ -16,6 +16,7 @@
     "@hono-template/framework": "workspace:*",
     "@hono/node-server": "^1.13.4",
     "hono": "4.9.9",
+    "picocolors": "1.1.1",
     "reflect-metadata": "0.1.13",
     "tsyringe": "4.10.0",
     "zod": "^3.23.8"

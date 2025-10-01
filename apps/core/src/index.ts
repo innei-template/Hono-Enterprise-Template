@@ -1,6 +1,7 @@
 import 'reflect-metadata'
 
 import { serve } from '@hono/node-server'
+import { green } from 'picocolors'
 
 import { createConfiguredApp } from './app.factory'
 import { logger } from './helpers/logger.helper'
@@ -22,7 +23,9 @@ async function bootstrap() {
     hostname,
   })
 
-  logger.info(`Hono HTTP application started on http://${hostname}:${port}`)
+  logger.info(
+    `Hono HTTP application started on http://${hostname}:${port}. ${green(`+${performance.now().toFixed(2)}ms`)}`,
+  )
 }
 
 bootstrap().catch((error) => {

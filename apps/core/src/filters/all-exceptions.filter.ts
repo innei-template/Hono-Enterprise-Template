@@ -1,10 +1,12 @@
-import type { ExceptionFilter } from '@hono-template/framework'
-import { HttpException } from '@hono-template/framework'
+import type { ArgumentsHost, ExceptionFilter } from '@hono-template/framework'
+import { createLogger, HttpException } from '@hono-template/framework'
+import { toUri } from 'core/helpers/url.helper'
 import { injectable } from 'tsyringe'
 
 @injectable()
 export class AllExceptionsFilter implements ExceptionFilter {
-  catch(exception: unknown) {
+  private readonly logger = createLogger('AllExceptionsFilter')
+  catch(exception: unknown, host: ArgumentsHost) {
     if (exception instanceof HttpException) {
       return new Response(JSON.stringify(exception.getResponse()), {
         status: exception.getStatus(),
@@ -14,8 +16,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       })
     }
 
+    const ctx = host.getContext()
+
     const error = exception instanceof Error ? exception : new Error(String(exception))
-    console.error('Unhandled exception caught by filter', error)
+
+    this.logger.error(`--- ${ctx.req.method} ${toUri(ctx.req.url)} --->\n`, error)
 
     return new Response(
       JSON.stringify({
