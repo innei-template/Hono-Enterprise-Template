@@ -1,0 +1,29 @@
+{
+  "name": "@hono-template/framework",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "hono": "4.9.9",
+    "picocolors": "1.1.1",
+    "reflect-metadata": "0.1.13",
+    "tsyringe": "4.10.0",
+    "zod": "^3.23.8"
+  },
+  "scripts": {
+    "test": "vitest run --coverage",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.7",
+    "@vitest/coverage-v8": "2.1.9",
+    "vitest": "^2.1.9"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "hono-template",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {},
+  "keywords": [],
+  "author": "Innei",
+  "license": "MIT",
+  "packageManager": "pnpm@10.17.1",
+  "devDependencies": {
+    "typescript": "5.9.2"
+  }
+}
