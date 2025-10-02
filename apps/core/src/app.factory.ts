@@ -4,12 +4,12 @@ import { env } from '@hono-template/env'
 import type { HonoHttpApplication } from '@hono-template/framework'
 import { createApplication, createZodValidationPipe } from '@hono-template/framework'
 
-import { PgPoolProvider } from './database/providers'
+import { PgPoolProvider } from './database/database.provider'
 import { TransactionInterceptor } from './database/transaction.interceptor'
 import { AllExceptionsFilter } from './filters/all-exceptions.filter'
 import { LoggingInterceptor } from './interceptors/logging.interceptor'
 import { AppModules } from './modules/index.module'
-import { RedisProvider } from './redis/providers'
+import { RedisProvider } from './redis/redis.provider'
 
 export interface BootstrapOptions {
   globalPrefix?: string

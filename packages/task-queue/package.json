@@ -1,5 +1,5 @@
 {
-  "name": "@hono-template/framework",
+  "name": "@hono-template/task-queue",
   "type": "module",
   "version": "1.0.0",
   "exports": {
@@ -14,17 +14,17 @@
     "test": "vitest run --coverage",
     "test:watch": "vitest"
   },
+  "peerDependencies": {
+    "ioredis": "^5.8.0"
+  },
   "dependencies": {
-    "hono": "4.9.9",
-    "picocolors": "1.1.1",
-    "reflect-metadata": "0.2.2",
-    "tsyringe": "4.10.0",
-    "zod": "^4.1.11"
+    "@hono-template/framework": "workspace:*",
+    "tsyringe": "^4.8.0"
   },
   "devDependencies": {
     "@types/node": "^24.6.2",
     "@vitest/coverage-v8": "3.2.4",
-    "unplugin-swc": "1.5.7",
+    "ioredis": "^5.8.0",
     "vitest": "3.2.4"
   }
 }

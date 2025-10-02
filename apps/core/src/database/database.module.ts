@@ -1,8 +1,8 @@
 import { Module } from '@hono-template/framework'
 import { injectable } from 'tsyringe'
 
-import { DatabaseConfig } from './config'
-import { DbAccessor, DrizzleProvider, PgPoolProvider } from './providers'
+import { DatabaseConfig } from './database.config'
+import { DbAccessor, DrizzleProvider, PgPoolProvider } from './database.provider'
 import { TransactionInterceptor } from './transaction.interceptor'
 
 @injectable()

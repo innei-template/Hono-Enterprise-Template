@@ -14,8 +14,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   plugins: [tsconfigPaths(), swc.vite()],
   esbuild: false,
-
+  ssr: {
+    noExternal: true,
+  },
   build: {
+    ssr: true,
+    ssrEmitAssets: true,
     rollupOptions: {
       external: NODE_BUILT_IN_MODULES,
 

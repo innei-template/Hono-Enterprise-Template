@@ -23,7 +23,9 @@
       "@hono-template/db": ["packages/db/src"],
       "@hono-template/db/*": ["packages/db/src/*"],
       "@hono-template/framework": ["packages/framework/src"],
-      "@hono-template/framework/*": ["packages/framework/src/*"]
+      "@hono-template/framework/*": ["packages/framework/src/*"],
+      "@hono-template/task-queue": ["packages/task-queue/src"],
+      "@hono-template/task-queue/*": ["packages/task-queue/src/*"]
     }
   }
 }

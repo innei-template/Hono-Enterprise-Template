@@ -1,8 +1,8 @@
 import { Module } from '@hono-template/framework'
 import { injectable } from 'tsyringe'
 
-import { RedisConfig } from './config'
-import { RedisAccessor, RedisProvider } from './providers'
+import { RedisConfig } from './redis.config'
+import { RedisAccessor, RedisProvider } from './redis.provider'
 
 @injectable()
 class RedisTokenProvider {

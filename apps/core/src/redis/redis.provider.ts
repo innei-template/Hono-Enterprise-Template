@@ -3,7 +3,7 @@ import type { RedisClient } from '@hono-template/redis'
 import { createRedisClient } from '@hono-template/redis'
 import { injectable } from 'tsyringe'
 
-import { RedisConfig } from './config'
+import { RedisConfig } from './redis.config'
 
 const logger = createLogger('Redis')
 

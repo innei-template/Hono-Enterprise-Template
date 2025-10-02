@@ -15,6 +15,8 @@ function authorizedHeaders() {
   }
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
 describe('HonoHttpApplication integration', () => {
   let app: HonoHttpApplication
   let fetcher: (request: Request) => Promise<Response>
@@ -111,6 +113,64 @@ describe('HonoHttpApplication integration', () => {
         message: 'unit test',
       },
     })
+  })
+
+  it('enqueues and processes redis-backed queue jobs', async () => {
+    const enqueue = await fetcher(
+      buildRequest('/api/queue/jobs', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          recipient: 'queue-test@example.com',
+          message: 'integration job',
+          attemptsBeforeSuccess: 2,
+          metadata: {
+            source: 'vitest',
+          },
+        }),
+      }),
+    )
+
+    const enqueueBody = await json(enqueue)
+    expect(enqueueBody.status).toBe(202)
+    const jobId = enqueueBody.data.jobId as string
+    expect(typeof jobId).toBe('string')
+
+    let jobState: Awaited<ReturnType<typeof json>> | undefined
+    for (let i = 0; i < 30; i += 1) {
+      await sleep(100)
+      const statusResponse = await fetcher(buildRequest(`/api/queue/jobs/${jobId}`, { method: 'GET' }))
+      if (statusResponse.status !== 200) {
+        continue
+      }
+
+      jobState = await json(statusResponse)
+      if (['completed', 'failed'].includes(jobState.data.status)) {
+        break
+      }
+    }
+
+    expect(jobState).toBeDefined()
+    expect(jobState?.status).toBe(200)
+    expect(jobState?.data.status).toBe('completed')
+    expect(jobState?.data.attempts).toBeGreaterThan(1)
+    expect(jobState?.data.result?.deliveredAt).toBeTypeOf('string')
+
+    const listResponse = await fetcher(buildRequest('/api/queue/jobs', { method: 'GET' }))
+    const listBody = await json(listResponse)
+    expect(listBody.status).toBe(200)
+    expect(Array.isArray(listBody.data)).toBe(true)
+    expect(listBody.data.some((item: { id: string }) => item.id === jobId)).toBe(true)
+
+    const statsResponse = await fetcher(buildRequest('/api/queue/stats', { method: 'GET' }))
+    const statsBody = await json(statsResponse)
+    expect(statsBody.status).toBe(200)
+    expect(statsBody.data.trackedJobs).toBeGreaterThanOrEqual(1)
+
+    const missingResponse = await fetcher(buildRequest('/api/queue/jobs/non-existent', { method: 'GET' }))
+    expect(missingResponse.status).toBe(404)
   })
 
   it('validates body with zod pipe and reports schema errors', async () => {

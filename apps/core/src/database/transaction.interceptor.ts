@@ -3,7 +3,7 @@ import { createLogger } from '@hono-template/framework'
 import type { PoolClient } from 'pg'
 import { injectable } from 'tsyringe'
 
-import { getOptionalDbContext, PgPoolProvider, runWithDbContext } from './providers'
+import { getOptionalDbContext, PgPoolProvider, runWithDbContext } from './database.provider'
 
 const logger = createLogger('DB')
 

@@ -1,7 +1,7 @@
 import { messages } from '@hono-template/db'
 import { injectable } from 'tsyringe'
 
-import { DbAccessor } from '../../database/providers'
+import { DbAccessor } from '../../database/database.provider'
 import type { CreateMessageInput } from './schemas/message.schema'
 
 @injectable()

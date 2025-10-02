@@ -12,7 +12,8 @@
     "db:studio": "pnpm --filter core db:studio",
     "dev": "pnpm --filter core dev",
     "lint": "eslint . --fix",
-    "prepare": "simple-git-hooks"
+    "prepare": "simple-git-hooks",
+    "test": "pnpm run -r test"
   },
   "dependencies": {
     "prettier": "3.6.2"
@@ -23,7 +24,7 @@
     "jiti": "2.6.1",
     "lint-staged": "16.2.3",
     "simple-git-hooks": "2.13.1",
-    "typescript": "5.9.2"
+    "typescript": "5.9.3"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged"

@@ -6,7 +6,7 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 import { Pool } from 'pg'
 import { injectable } from 'tsyringe'
 
-import { DatabaseConfig } from './config'
+import { DatabaseConfig } from './database.config'
 import type { DatabaseContextStore, DrizzleDb } from './tokens'
 
 const dbContext = new AsyncLocalStorage<DatabaseContextStore>()
