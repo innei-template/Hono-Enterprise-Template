@@ -27,6 +27,7 @@ import {
   createApplication,
   createLogger,
   Delete,
+  forwardRef,
   Get,
   Headers,
   HttpContext,
@@ -205,6 +206,16 @@ class BrokenController {
   controllers: [BrokenController],
 })
 class BrokenModule {}
+
+@Module({
+  imports: [forwardRef(() => ForwardRefRightModule)],
+})
+class ForwardRefLeftModule {}
+
+@Module({
+  imports: [forwardRef(() => ForwardRefLeftModule)],
+})
+class ForwardRefRightModule {}
 
 class CustomError extends Error {}
 
@@ -808,6 +819,11 @@ describe('HonoHttpApplication parameter factories', () => {
 describe('HonoHttpApplication internals', () => {
   it('throws descriptive errors when dependency resolution fails', async () => {
     await expect(createApplication(BrokenModule)).rejects.toThrowError(/Cannot inject the dependency missing/i)
+  })
+
+  it('supports forwardRef module relationships without infinite recursion', async () => {
+    const app = await createApplication(ForwardRefLeftModule)
+    expect(app.getInstance()).toBeDefined()
   })
 
   it('reuses an existing response object without wrapping', async () => {

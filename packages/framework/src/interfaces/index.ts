@@ -7,10 +7,16 @@ export interface FrameworkResponse<T = unknown> extends Response {
   json: () => Promise<T>
 }
 
+export interface ForwardReference<T = unknown> {
+  forwardRef: () => Constructor<T>
+}
+
+export type ModuleImport = Constructor | ForwardReference
+
 export interface ModuleMetadata {
   controllers?: Constructor[]
   providers?: Constructor[]
-  imports?: Constructor[]
+  imports?: ModuleImport[]
 }
 
 export interface CanActivate {

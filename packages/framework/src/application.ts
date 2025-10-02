@@ -10,7 +10,7 @@ import { isDebugEnabled } from './constants'
 import { HttpContext } from './context/http-context'
 import { getControllerMetadata } from './decorators/controller'
 import { getRoutesMetadata } from './decorators/http-methods'
-import { getModuleMetadata } from './decorators/module'
+import { getModuleMetadata, resolveModuleImports } from './decorators/module'
 import { getRouteArgsMetadata } from './decorators/params'
 import { BadRequestException, ForbiddenException, HttpException } from './http-exception'
 import type {
@@ -158,7 +158,7 @@ export class HonoHttpApplication {
 
     const metadata = getModuleMetadata(moduleClass)
 
-    for (const importedModule of metadata.imports ?? []) {
+    for (const importedModule of resolveModuleImports(metadata.imports)) {
       await this.registerModule(importedModule)
     }
 

@@ -11,6 +11,7 @@ A NestJS‑inspired, Hono‑powered enterprise template for building modular, ty
 - **Zod validation pipe**: metadata-driven DTO validation via `createZodValidationPipe({ ... })` and `@ZodSchema` decorators.
 - **Pretty logger**: Namespaced, colorized output with CI-safe text labels and hierarchical `extend()`.
 - **First-class testing**: Framework Vitest suite with 100% coverage; demo app covers all enhancer paths.
+- **Infrastructure providers via DI**: Postgres (Drizzle) and Redis (ioredis) wired as modules.
 
 ## 📁 Monorepo Layout
 
@@ -19,6 +20,9 @@ A NestJS‑inspired, Hono‑powered enterprise template for building modular, ty
 | `apps/core`                | Demo application showcasing modules, controllers, and all enhancers; usable as a starter |
 | `packages/framework`       | Core framework: `HonoHttpApplication`, decorators, HTTP context, logger, Zod pipe, etc.  |
 | `packages/framework/tests` | Vitest suite for the framework with coverage and lifecycle tests                         |
+| `packages/db`              | Drizzle schema & types plus migrations configuration                                     |
+| `packages/env`             | Runtime env validation powered by `@t3-oss/env-core`                                     |
+| `packages/redis`           | Redis client factory (`ioredis`) and strong types                                        |
 
 ## ✅ Requirements
 
@@ -46,6 +50,20 @@ pnpm -C apps/core demo
 ```
 
 Coverage reports are generated at `packages/framework/coverage`.
+
+## 🔧 Environment
+
+Create a `.env` file at the repo root with at least:
+
+```bash
+DATABASE_URL=postgres://user:pass@localhost:5432/db
+REDIS_URL=redis://localhost:6379
+
+# Optional Postgres pool tuning
+PG_POOL_MAX=10
+PG_IDLE_TIMEOUT=30000
+PG_CONN_TIMEOUT=5000
+```
 
 ## 🧱 Architecture & Runtime Model
 
@@ -87,6 +105,47 @@ Bootstrapping with `createApplication(RootModule, options)` performs:
 - `@UseFilters(...filters)`: handle and customize error responses; unhandled errors return a 500 JSON payload.
 
 Zod validation is provided by registering DTO classes with `createZodSchemaDto(...)` (or the lower-level `@ZodSchema(...)`) and enabling a global `createZodValidationPipe({ ... })`. See `packages/framework/tests/application.spec.ts` for full examples.
+
+### 2.5) Infrastructure Modules: Database (Postgres) and Redis
+
+Both the database and Redis are registered as DI-driven modules in the demo app.
+
+- Database lives under `apps/core/src/database` and exposes a `DbAccessor` that returns a request-aware Drizzle instance.
+- Redis lives under `apps/core/src/redis` and exposes a `RedisAccessor` that returns a singleton `ioredis` client.
+
+Ensure `DatabaseModule` and `RedisModule` are imported by your root module (already wired in the demo):
+
+```ts
+import { Module } from '@hono-template/framework'
+import { DatabaseModule } from '../database/module'
+import { RedisModule } from '../redis/module'
+import { AppModule } from './app/app.module'
+
+@Module({
+  imports: [DatabaseModule, RedisModule, AppModule],
+})
+export class AppModules {}
+```
+
+Using Redis from a service via DI:
+
+```ts
+import { injectable } from 'tsyringe'
+import { RedisAccessor } from '../redis/providers'
+
+@injectable()
+export class CacheService {
+  constructor(private readonly redis: RedisAccessor) {}
+
+  async setGreeting(key: string, name: string): Promise<void> {
+    await this.redis.get().set(key, name, 'EX', 60)
+  }
+
+  async getGreeting(key: string): Promise<string | null> {
+    return await this.redis.get().get(key)
+  }
+}
+```
 
 ### 3) Result Handling
 
