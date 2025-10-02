@@ -9,5 +9,5 @@ export const EXCEPTION_FILTERS_METADATA = Symbol('EXCEPTION_FILTERS_METADATA')
 export const ROUTE_ARGS_METADATA = Symbol('ROUTE_ARGS_METADATA')
 
 export function isDebugEnabled(): boolean {
-  return process.env.DEBUG_PARAMS === 'true'
+  return process.env.DEBUG === 'true'
 }

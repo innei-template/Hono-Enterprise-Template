@@ -16,6 +16,14 @@
     "sourceMap": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "@hono-template/env": ["packages/env/src"],
+      "@hono-template/env/*": ["packages/env/src/*"],
+      "@hono-template/db": ["packages/db/src"],
+      "@hono-template/db/*": ["packages/db/src/*"],
+      "@hono-template/framework": ["packages/framework/src"],
+      "@hono-template/framework/*": ["packages/framework/src/*"]
+    }
   }
 }

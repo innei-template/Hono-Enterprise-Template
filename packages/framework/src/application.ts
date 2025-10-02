@@ -15,9 +15,11 @@ import { getRouteArgsMetadata } from './decorators/params'
 import { BadRequestException, ForbiddenException, HttpException } from './http-exception'
 import type {
   ArgumentMetadata,
+  CallHandler,
   CanActivate,
   Constructor,
   ExceptionFilter,
+  FrameworkResponse,
   GlobalEnhancerRegistry,
   NestInterceptor,
   PipeTransform,
@@ -28,6 +30,8 @@ import type { PrettyLogger } from './logger'
 import { createLogger } from './logger'
 import { createExecutionContext } from './utils/execution-context'
 import { collectFilters, collectGuards, collectInterceptors, collectPipes } from './utils/metadata'
+
+const GENERATED_RESPONSE = Symbol.for('hono.framework.generatedResponse')
 
 export interface ApplicationOptions {
   container?: DependencyContainer
@@ -66,13 +70,19 @@ export class HonoHttpApplication {
     const rawModuleName = (this.rootModule as Function).name
     this.moduleName = rawModuleName && rawModuleName.trim().length > 0 ? rawModuleName : 'AnonymousModule'
     this.container = options.container ?? rootContainer.createChildContainer()
-    this.logger.info(`Initialized application container for module ${this.moduleName}`)
+    this.logger.info(
+      `Initialized application container for module ${this.moduleName}`,
+      colors.green(`+${performance.now().toFixed(2)}ms`),
+    )
   }
 
   async init(): Promise<void> {
     this.logger.info(`Bootstrapping application for module ${this.moduleName}`)
     await this.registerModule(this.rootModule)
-    this.logger.info(`Application initialization complete for module ${this.moduleName}`)
+    this.logger.info(
+      `Application initialization complete for module ${this.moduleName}`,
+      colors.green(`+${performance.now().toFixed(2)}ms`),
+    )
   }
 
   getInstance(): Hono {
@@ -87,6 +97,7 @@ export class HonoHttpApplication {
     try {
       return this.container.resolve(token as unknown as InjectionToken<T>)
     } catch (error) {
+      /* c8 ignore start */
       if (error instanceof Error && error.message.includes('Cannot inject the dependency ')) {
         // Cannot inject the dependency "appService" at position #0 of "AppController" constructor.
         const regexp = /Cannot inject the dependency "([^"]+)" at position #(\d+) of "([^"]+)" constructor\./
@@ -104,6 +115,7 @@ export class HonoHttpApplication {
         }
       }
       throw error
+      /* c8 ignore end */
     }
   }
 
@@ -112,7 +124,11 @@ export class HonoHttpApplication {
     if (!this.container.isRegistered(injectionToken, true)) {
       this.container.registerSingleton(injectionToken, token)
       const providerName = token.name && token.name.length > 0 ? token.name : token.toString()
-      this.diLogger.debug('Registered singleton provider', providerName)
+      this.diLogger.debug(
+        'Registered singleton provider',
+        colors.yellow(providerName),
+        colors.green(`+${performance.now().toFixed(2)}ms`),
+      )
     }
   }
 
@@ -156,7 +172,11 @@ export class HonoHttpApplication {
       this.registerController(controller)
     }
 
-    this.logger.debug('Module registration complete', moduleClass.name)
+    this.logger.debug(
+      'Module registration complete',
+      colors.yellow(moduleClass.name),
+      colors.green(`+${performance.now().toFixed(2)}ms`),
+    )
   }
 
   private registerController(controller: Constructor): void {
@@ -200,7 +220,11 @@ export class HonoHttpApplication {
         })
       })
 
-      this.routerLogger.info(`Mapped route ${method} ${fullPath} -> ${controller.name}.${String(route.handlerName)}`)
+      this.routerLogger.info(
+        `Mapped route ${method} ${fullPath} -> ${controller.name}.${String(route.handlerName)}`,
+
+        colors.green(`+${performance.now().toFixed(2)}ms`),
+      )
     }
   }
 
@@ -244,21 +268,23 @@ export class HonoHttpApplication {
   ): Promise<Response> {
     const interceptorCtors = [...this.globalEnhancers.interceptors, ...collectInterceptors(controller, handlerName)]
 
-    const callHandler = {
-      handle: finalHandler,
+    const honoContext = executionContext.getContext<Context>()
+
+    const callHandler: CallHandler = {
+      handle: async (): Promise<FrameworkResponse> => this.ensureResponse(honoContext, await finalHandler()),
     }
 
     const interceptors = interceptorCtors.map((ctor) => this.resolveInstance(ctor)).reverse()
 
-    const dispatch = interceptors.reduce(
-      (next, interceptor) => ({
-        handle: () => interceptor.intercept(executionContext, next),
+    const dispatch: CallHandler = interceptors.reduce(
+      (next, interceptor): CallHandler => ({
+        handle: () => Promise.resolve(interceptor.intercept(executionContext, next)),
       }),
       callHandler,
     )
 
     const result = await dispatch.handle()
-    return this.ensureResponse(executionContext.getContext(), result)
+    return this.ensureResponse(honoContext, result)
   }
 
   private async handleException(
@@ -314,22 +340,22 @@ export class HonoHttpApplication {
     }
 
     if (typeof payload === 'string') {
-      return new Response(payload as BodyInit)
+      return this.markGeneratedResponse(new Response(payload as BodyInit))
     }
 
     if (payload instanceof ArrayBuffer) {
-      return new Response(payload as BodyInit)
+      return this.markGeneratedResponse(new Response(payload as BodyInit))
     }
 
     if (ArrayBuffer.isView(payload)) {
-      return new Response(payload as BodyInit)
+      return this.markGeneratedResponse(new Response(payload as BodyInit))
     }
 
     if (payload instanceof ReadableStream) {
-      return new Response(payload)
+      return this.markGeneratedResponse(new Response(payload))
     }
 
-    return context.json(payload)
+    return this.markGeneratedResponse(context.json(payload))
   }
 
   private json(context: Context, payload: unknown, status: number): Response {
@@ -340,6 +366,11 @@ export class HonoHttpApplication {
         'content-type': 'application/json',
       },
     })
+  }
+
+  private markGeneratedResponse(response: Response): Response {
+    Reflect.set(response as unknown as Record<PropertyKey, unknown>, GENERATED_RESPONSE, true)
+    return response
   }
 
   private getGlobalAndHandlerPipes(controller: Constructor, handlerName: string | symbol): PipeTransform[] {

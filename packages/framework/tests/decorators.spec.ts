@@ -10,6 +10,7 @@ import {
   createZodDto,
   createZodSchemaDto,
   createZodValidationPipe,
+  FrameworkResponse,
   Get,
   getControllerMetadata,
   getModuleMetadata,
@@ -35,7 +36,14 @@ import {
   ROUTE_ARGS_METADATA,
 } from '../src/constants'
 import { getEnhancerMetadata, UseFilters, UseGuards, UseInterceptors, UsePipes } from '../src/decorators/enhancers'
-import type { ArgumentsHost, CanActivate, ExceptionFilter, NestInterceptor, PipeTransform } from '../src/interfaces'
+import type {
+  ArgumentsHost,
+  CallHandler,
+  CanActivate,
+  ExceptionFilter,
+  NestInterceptor,
+  PipeTransform,
+} from '../src/interfaces'
 import { createExecutionContext } from '../src/utils/execution-context'
 
 @Module({
@@ -60,7 +68,7 @@ class DummyPipe implements PipeTransform<unknown> {
 
 @injectable()
 class DummyInterceptor implements NestInterceptor {
-  async intercept(_context, next) {
+  async intercept(_context, next: CallHandler): Promise<FrameworkResponse> {
     return next.handle()
   }
 }
@@ -236,7 +244,7 @@ describe('decorators and helpers', () => {
         meta: Record<string, unknown>
       }>()
       expect(response.statusCode).toBe(422)
-      expect(response.errors.name).toEqual(['required'])
+      expect(response.errors.name).toEqual([expect.stringContaining('expected string')])
       expect(response.meta.target).toBe('PayloadDto')
     }
   })

@@ -7,6 +7,9 @@
   "license": "MIT",
   "main": "index.js",
   "scripts": {
+    "db:generate": "pnpm --filter core db:generate",
+    "db:migrate": "pnpm --filter core db:migrate",
+    "db:studio": "pnpm --filter core db:studio",
     "dev": "pnpm --filter core dev",
     "lint": "eslint . --fix",
     "prepare": "simple-git-hooks"

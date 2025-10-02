@@ -11,7 +11,9 @@
     "types": ["node"],
     "paths": {
       "core": ["./src"],
-      "core/*": ["./src/*"]
+      "core/*": ["./src/*"],
+      "@hono-template/db": ["../../packages/db/src"],
+      "@hono-template/db/*": ["../../packages/db/src/*"]
     },
     "resolveJsonModule": true,
     "allowJs": true,

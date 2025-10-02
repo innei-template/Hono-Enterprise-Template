@@ -1,9 +1,12 @@
+import { messages } from '@hono-template/db'
 import { injectable } from 'tsyringe'
 
+import { DbAccessor } from '../../database/providers'
 import type { CreateMessageInput } from './schemas/message.schema'
 
 @injectable()
 export class AppService {
+  constructor(private readonly db: DbAccessor) {}
   getHello(echo?: string | null): {
     message: string
     timestamp: string
@@ -31,11 +34,15 @@ export class AppService {
   }
 
   createMessage(id: number, payload: CreateMessageInput) {
-    return {
-      id,
-      ...payload,
-      status: 'queued',
-      createdAt: new Date().toISOString(),
-    }
+    return this.db
+      .get()
+      .insert(messages)
+      .values({
+        title: payload.message,
+        body: payload.message,
+        status: 'queued',
+        createdAt: new Date().toISOString(),
+      })
+      .returning()
   }
 }

@@ -1,3 +1,4 @@
+import { env } from '@hono-template/env'
 import type { CanActivate, ExecutionContext } from '@hono-template/framework'
 import { UnauthorizedException } from '@hono-template/framework'
 import { injectable } from 'tsyringe'
@@ -7,7 +8,7 @@ export class ApiKeyGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const honoContext = context.getContext()
     const apiKey = honoContext.req.header('x-api-key')
-    const expected = process.env.API_KEY ?? 'secret-key'
+    const expected = env.API_KEY ?? 'secret-key'
 
     if (apiKey !== expected) {
       throw new UnauthorizedException({

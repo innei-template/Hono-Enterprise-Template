@@ -3,6 +3,10 @@ import type { DependencyContainer } from 'tsyringe'
 
 export type Constructor<T = any> = new (...args: any[]) => T
 
+export interface FrameworkResponse<T = unknown> extends Response {
+  json: () => Promise<T>
+}
+
 export interface ModuleMetadata {
   controllers?: Constructor[]
   providers?: Constructor[]
@@ -24,11 +28,11 @@ export interface ArgumentMetadata {
 }
 
 export interface CallHandler<T = unknown> {
-  handle: () => Promise<T>
+  handle: () => Promise<FrameworkResponse<T>>
 }
 
-export interface NestInterceptor {
-  intercept: (context: ExecutionContext, next: CallHandler) => Promise<unknown>
+export interface NestInterceptor<T = unknown> {
+  intercept: (context: ExecutionContext, next: CallHandler<T>) => Promise<FrameworkResponse<T>> | FrameworkResponse<T>
 }
 
 export interface ExceptionFilter<T = Error> {

@@ -1,6 +1,7 @@
 import 'reflect-metadata'
 
 import { serve } from '@hono/node-server'
+import { env } from '@hono-template/env'
 import { green } from 'picocolors'
 
 import { createConfiguredApp } from './app.factory'
@@ -14,9 +15,9 @@ async function bootstrap() {
   })
 
   const hono = app.getInstance()
-  const port = Number(process.env.PORT ?? 3000)
+  const port = env.PORT
 
-  const hostname = process.env.HOSTNAME ?? '0.0.0.0'
+  const hostname = env.HOSTNAME
   serve({
     fetch: hono.fetch,
     port,

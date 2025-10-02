@@ -1,6 +1,6 @@
 {
   "ignore": ["dist"],
-  "watch": ["src"],
+  "watch": ["src", "../packages/*/src"],
   "ext": "ts,js,json",
   "exec": "vite-node src/index.ts"
 }

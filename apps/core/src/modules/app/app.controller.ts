@@ -16,8 +16,8 @@ import type { Context } from 'hono'
 import { injectable } from 'tsyringe'
 
 import { ApiKeyGuard } from '../../guards/api-key.guard'
+import { ParseIntPipe } from '../../pipes/parse-int.pipe'
 import { AppService } from './app.service'
-import { ParseIntPipe } from './pipes/parse-int.pipe'
 import { CreateMessageDto } from './schemas/message.schema'
 
 @Controller('app')
@@ -51,12 +51,18 @@ export class AppController {
     context: Context,
     @Headers('x-request-id') requestId?: string,
   ) {
-    const message = this.appService.createMessage(id, payload)
+    const [record] = await this.appService.createMessage(id, payload)
 
     return {
       requestId: requestId ?? randomUUID(),
       origin: context.req.header('cf-connecting-ip') ?? 'local',
-      data: message,
+      data: {
+        id,
+        message: payload.message,
+        tags: payload.tags ?? [],
+        status: record?.status ?? 'queued',
+        createdAt: record?.createdAt ?? new Date().toISOString(),
+      },
     }
   }
 

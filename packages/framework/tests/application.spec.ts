@@ -13,6 +13,7 @@ import type {
   Constructor,
   ExceptionFilter,
   ExecutionContext,
+  FrameworkResponse,
   HonoHttpApplication,
   NestInterceptor,
   PipeTransform,
@@ -45,6 +46,8 @@ import { ROUTE_ARGS_METADATA } from '../src/constants'
 import type { ArgumentsHost, CallHandler } from '../src/interfaces'
 
 const BASE_URL = 'http://localhost'
+
+const GENERATED_RESPONSE = Symbol.for('hono.framework.generatedResponse')
 
 function createRequest(path: string, init?: RequestInit) {
   return new Request(`${BASE_URL}${path}`, init)
@@ -143,7 +146,7 @@ class DoublePipe implements PipeTransform<unknown, number> {
 
 @injectable()
 class GlobalInterceptor implements NestInterceptor {
-  async intercept(context: ExecutionContext, next: CallHandler) {
+  async intercept(context: ExecutionContext, next: CallHandler): Promise<FrameworkResponse> {
     callOrder.push('global-interceptor-before')
     const result = await next.handle()
     callOrder.push('global-interceptor-after')
@@ -153,16 +156,55 @@ class GlobalInterceptor implements NestInterceptor {
 
 @injectable()
 class MethodInterceptor implements NestInterceptor {
-  async intercept(context: ExecutionContext, next: CallHandler) {
+  async intercept(context: ExecutionContext, next: CallHandler): Promise<FrameworkResponse> {
     callOrder.push('method-interceptor-before')
     const result = await next.handle()
     callOrder.push('method-interceptor-after')
-    if (typeof result === 'string') {
-      return `${result}|intercepted`
+    const generated = (result as Record<PropertyKey, unknown>)[GENERATED_RESPONSE]
+    const contentType = result.headers.get('content-type') ?? ''
+
+    if (generated && contentType.includes('text/plain')) {
+      const text = await result.text()
+      const headerEntries = Array.from(result.headers.entries())
+      if (!headerEntries.some(([key]) => key.toLowerCase() === 'content-type')) {
+        headerEntries.push(['content-type', 'text/plain; charset=utf-8'])
+      }
+
+      const response = new Response(`${text}|intercepted`, {
+        status: result.status,
+        statusText: result.statusText,
+        headers: headerEntries,
+      })
+
+      Reflect.set(response as Record<PropertyKey, unknown>, GENERATED_RESPONSE, true)
+
+      return response
     }
+
     return result
   }
 }
+
+@injectable()
+class MissingService {
+  constructor(private readonly value: string) {}
+}
+
+@injectable()
+@Controller('broken')
+class BrokenController {
+  constructor(private readonly missing: MissingService) {}
+
+  @Get('/')
+  handler() {
+    return 'broken'
+  }
+}
+
+@Module({
+  controllers: [BrokenController],
+})
+class BrokenModule {}
 
 class CustomError extends Error {}
 
@@ -516,7 +558,7 @@ describe('HonoHttpApplication end-to-end', () => {
       statusCode: 422,
       message: 'Validation failed',
       errors: {
-        message: ['message required'],
+        message: [expect.stringContaining('expected string')],
       },
       meta: {
         target: 'BodyDto',
@@ -706,10 +748,10 @@ describe('HonoHttpApplication end-to-end', () => {
     expect(app.getContainer()).toBeDefined()
   })
 
-  it('emits parameter metadata logs when DEBUG_PARAMS is enabled', async () => {
+  it('emits parameter metadata logs when DEBUG is enabled', async () => {
     const original = Reflect.getMetadata('design:paramtypes', DemoController.prototype, 'greet')
     Reflect.defineMetadata('design:paramtypes', [String], DemoController.prototype, 'greet')
-    process.env.DEBUG_PARAMS = 'true'
+    process.env.DEBUG = 'true'
 
     try {
       const response = await fetcher(
@@ -724,7 +766,7 @@ describe('HonoHttpApplication end-to-end', () => {
       } else {
         Reflect.deleteMetadata('design:paramtypes', DemoController.prototype, 'greet')
       }
-      delete process.env.DEBUG_PARAMS
+      delete process.env.DEBUG
     }
   })
 })
@@ -764,6 +806,10 @@ describe('HonoHttpApplication parameter factories', () => {
 })
 
 describe('HonoHttpApplication internals', () => {
+  it('throws descriptive errors when dependency resolution fails', async () => {
+    await expect(createApplication(BrokenModule)).rejects.toThrowError(/Cannot inject the dependency missing/i)
+  })
+
   it('reuses an existing response object without wrapping', async () => {
     const app = await createApplication(FactoryModule)
     const context = {

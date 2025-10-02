@@ -1,4 +1,5 @@
 import swc from 'unplugin-swc'
+import tsconfigPaths from 'vite-tsconfig-paths'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
@@ -11,5 +12,5 @@ export default defineConfig({
     maxConcurrency: 1,
   },
   esbuild: false,
-  plugins: [swc.vite()],
+  plugins: [tsconfigPaths(), swc.vite()],
 })
