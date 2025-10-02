@@ -13,18 +13,11 @@ export class LoggingInterceptor implements NestInterceptor {
     const honoContext = context.getContext()
     const { method, url } = honoContext.req
 
-    {
-      const parts: string[] = ['<---', `${method} -> ${toUri(url)}`]
-      httpLogger.info(parts.join(' '))
-    }
-
+    const uri = toUri(url)
+    httpLogger.info(['<---', `${method} -> ${uri}`].join(' '))
     const result = await next.handle()
-
     const durationMs = Number((performance.now() - start).toFixed(2))
-    {
-      const parts: string[] = ['--->', `${method} -> ${toUri(url)}`, green(`+${durationMs}ms`)]
-      httpLogger.info(parts.join(' '))
-    }
+    httpLogger.info(['--->', `${method} -> ${uri}`, green(`+${durationMs}ms`)].join(' '))
 
     return result
   }

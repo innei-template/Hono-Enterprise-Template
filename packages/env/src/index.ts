@@ -10,6 +10,7 @@ export const env = createEnv({
     HOSTNAME: z.string().default('0.0.0.0'),
     API_KEY: z.string().min(1).optional(),
     DATABASE_URL: z.url(),
+    REDIS_URL: z.string().url(),
     PG_POOL_MAX: z.string().regex(/^\d+$/).transform(Number).optional(),
     PG_IDLE_TIMEOUT: z.string().regex(/^\d+$/).transform(Number).optional(),
     PG_CONN_TIMEOUT: z.string().regex(/^\d+$/).transform(Number).optional(),

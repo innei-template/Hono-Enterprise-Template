@@ -9,6 +9,7 @@ import { TransactionInterceptor } from './database/transaction.interceptor'
 import { AllExceptionsFilter } from './filters/all-exceptions.filter'
 import { LoggingInterceptor } from './interceptors/logging.interceptor'
 import { AppModules } from './modules/index.module'
+import { RedisProvider } from './redis/providers'
 
 export interface BootstrapOptions {
   globalPrefix?: string
@@ -39,6 +40,10 @@ export async function createConfiguredApp(options: BootstrapOptions = {}): Promi
   const container = app.getContainer()
   const poolProvider = container.resolve(PgPoolProvider)
   await poolProvider.warmup()
+
+  // Warm up Redis connection during bootstrap
+  const redisProvider = container.resolve(RedisProvider)
+  await redisProvider.warmup()
 
   return app
 }

@@ -19,6 +19,7 @@
     "@hono-template/db": "workspace:*",
     "@hono-template/env": "workspace:*",
     "@hono-template/framework": "workspace:*",
+    "@hono-template/redis": "workspace:*",
     "@hono/node-server": "^1.13.4",
     "drizzle-orm": "^0.44.5",
     "hono": "4.9.9",
