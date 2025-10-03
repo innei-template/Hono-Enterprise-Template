@@ -190,7 +190,7 @@ class MethodInterceptor implements NestInterceptor {
     callOrder.push('method-interceptor-before')
     const result = await next.handle()
     callOrder.push('method-interceptor-after')
-    const generated = (result as Record<PropertyKey, unknown>)[GENERATED_RESPONSE]
+    const generated = (result as unknown as Record<PropertyKey, unknown>)[GENERATED_RESPONSE]
     const contentType = result.headers.get('content-type') ?? ''
 
     if (generated && contentType.includes('text/plain')) {
@@ -206,7 +206,7 @@ class MethodInterceptor implements NestInterceptor {
         headers: headerEntries,
       })
 
-      Reflect.set(response as Record<PropertyKey, unknown>, GENERATED_RESPONSE, true)
+      Reflect.set(response as unknown as Record<PropertyKey, unknown>, GENERATED_RESPONSE, true)
 
       return response
     }
@@ -282,7 +282,7 @@ class MethodExceptionFilter implements ExceptionFilter {
 
 const BodySchema = z
   .object({
-    message: z.string({ required_error: 'message required' }),
+    message: z.string({ message: 'message required' }),
     tags: z.array(z.string()).default([]),
   })
   .describe('BodySchema')
