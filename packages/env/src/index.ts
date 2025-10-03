@@ -14,6 +14,13 @@ export const env = createEnv({
     PG_POOL_MAX: z.string().regex(/^\d+$/).transform(Number).optional(),
     PG_IDLE_TIMEOUT: z.string().regex(/^\d+$/).transform(Number).optional(),
     PG_CONN_TIMEOUT: z.string().regex(/^\d+$/).transform(Number).optional(),
+    // Optional social provider credentials for Better Auth
+    GOOGLE_CLIENT_ID: z.string().optional(),
+    GOOGLE_CLIENT_SECRET: z.string().optional(),
+    GITHUB_CLIENT_ID: z.string().optional(),
+    GITHUB_CLIENT_SECRET: z.string().optional(),
+    ZOOM_CLIENT_ID: z.string().optional(),
+    ZOOM_CLIENT_SECRET: z.string().optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

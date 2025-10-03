@@ -168,7 +168,7 @@ Logger options include custom writer, color strategy, clock, per-level colors, a
 
 ### 5) Request Context
 
-`HttpContext.run(context, fn)` establishes a request scope; call `HttpContext.get()` to access the current Hono `Context` from services, guards, or interceptors. You may replace the active context with `HttpContext.setContext()` if needed.
+`HttpContext.run(context, fn)` establishes a request scope backed by `AsyncLocalStorage`. The store is a typed object that always includes the active Hono `Context` as `store.hono` and can be extended via module augmentation. Use `HttpContext.get()`/`HttpContext.getValue('hono')` inside guards, interceptors, or services, and `HttpContext.assign()`/`setValue()` to attach custom request metadata.
 
 ## 🧪 Testing & Quality
 

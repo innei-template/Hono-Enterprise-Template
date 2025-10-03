@@ -191,7 +191,7 @@ export class HonoHttpApplication {
       this.app.on(method, fullPath, async (context: Context) => {
         return await HttpContext.run(context, async () => {
           const handler = Reflect.get(controllerInstance, route.handlerName) as (...args: any[]) => any
-          const executionContext = createExecutionContext(context, this.container, controller, handler)
+          const executionContext = createExecutionContext(this.container, controller, handler)
 
           try {
             await this.executeGuards(controller, route.handlerName, executionContext)
@@ -268,7 +268,7 @@ export class HonoHttpApplication {
   ): Promise<Response> {
     const interceptorCtors = [...this.globalEnhancers.interceptors, ...collectInterceptors(controller, handlerName)]
 
-    const honoContext = executionContext.getContext<Context>()
+    const honoContext = HttpContext.getValue('hono')
 
     const callHandler: CallHandler = {
       handle: async (): Promise<FrameworkResponse> => this.ensureResponse(honoContext, await finalHandler()),

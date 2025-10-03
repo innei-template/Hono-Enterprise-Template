@@ -1,5 +1,7 @@
 import 'reflect-metadata'
 
+import { injectable } from 'tsyringe'
+
 import { CONTROLLER_METADATA } from '../constants'
 import type { Constructor } from '../interfaces'
 
@@ -16,6 +18,8 @@ export function Controller(prefix = ''): ClassDecorator {
       } satisfies ControllerMetadata,
       target as unknown as Constructor,
     )
+
+    injectable()(target as unknown as Constructor)
   }
 }
 

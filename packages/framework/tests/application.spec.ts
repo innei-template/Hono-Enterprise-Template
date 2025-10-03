@@ -50,6 +50,15 @@ const BASE_URL = 'http://localhost'
 
 const GENERATED_RESPONSE = Symbol.for('hono.framework.generatedResponse')
 
+declare module '../src/context/http-context' {
+  interface HttpContextValues {
+    auth?: {
+      apiKey?: string
+      allowed?: boolean
+    }
+  }
+}
+
 function createRequest(path: string, init?: RequestInit) {
   return new Request(`${BASE_URL}${path}`, init)
 }
@@ -89,9 +98,16 @@ class DemoService {
 class ApiKeyGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     callOrder.push('global-guard')
-    const honoContext = context.getContext<Context>()
-    expect(HttpContext.get<Context>()).toBe(honoContext)
-    return honoContext.req.header('x-api-key') === 'test-key'
+    const httpContext = context.getContext()
+    expect(HttpContext.get()).toBe(httpContext)
+    const apiKey = httpContext.hono.req.header('x-api-key') ?? undefined
+    HttpContext.assign({
+      auth: {
+        ...httpContext.auth,
+        apiKey,
+      },
+    })
+    return apiKey === 'test-key'
   }
 }
 
@@ -99,7 +115,15 @@ class ApiKeyGuard implements CanActivate {
 class AllowGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     callOrder.push('method-guard')
-    return context.getContext<Context>().req.header('x-allow') === 'yes'
+    const httpContext = context.getContext()
+    const allowed = httpContext.hono.req.header('x-allow') === 'yes'
+    HttpContext.assign({
+      auth: {
+        ...httpContext.auth,
+        allowed,
+      },
+    })
+    return allowed
   }
 }
 
@@ -230,7 +254,7 @@ class StacklessError extends Error {
 class GlobalExceptionFilter implements ExceptionFilter {
   async catch(exception: unknown, host: ArgumentsHost) {
     if (exception instanceof CustomError) {
-      const ctx = host.getContext<Context>()
+      const ctx = host.getContext().hono
       return ctx.json({ handled: 'custom' }, 418)
     }
     return
@@ -240,7 +264,7 @@ class GlobalExceptionFilter implements ExceptionFilter {
 @injectable()
 class MethodExceptionFilter implements ExceptionFilter {
   async catch(exception: unknown, host: ArgumentsHost) {
-    const ctx = host.getContext<Context>()
+    const ctx = host.getContext().hono
     return ctx.json(
       {
         handled: true,

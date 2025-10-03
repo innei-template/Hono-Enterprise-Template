@@ -16,7 +16,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       })
     }
 
-    const ctx = host.getContext()
+    const store = host.getContext()
+    const ctx = store.hono
 
     const error = exception instanceof Error ? exception : new Error(String(exception))
 

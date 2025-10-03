@@ -12,8 +12,8 @@ export class TransactionInterceptor implements NestInterceptor {
   constructor(private readonly poolProvider: PgPoolProvider) {}
 
   async intercept(context: ExecutionContext, next: CallHandler): Promise<FrameworkResponse> {
-    const hono = context.getContext()
-    const method = hono.req.method.toUpperCase()
+    const store = context.getContext()
+    const method = store.hono.req.method.toUpperCase()
     const isMutating = method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE'
 
     // Ensure db context exists per request lifecycle

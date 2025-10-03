@@ -46,6 +46,12 @@ import type {
 } from '../src/interfaces'
 import { createExecutionContext } from '../src/utils/execution-context'
 
+declare module '../src/context/http-context' {
+  interface HttpContextValues {
+    custom?: string
+  }
+}
+
 @Module({
   controllers: [],
   providers: [],
@@ -198,15 +204,18 @@ describe('decorators and helpers', () => {
   })
 
   it('manages HttpContext storage with async_hooks', async () => {
-    await HttpContext.run(createContext(), async () => {
-      const ctx = HttpContext.get<Context>()
-      expect(ctx).toHaveProperty('id')
-      HttpContext.setContext(ctx)
-      expect(HttpContext.get()).toBe(ctx)
+    const hono = createContext()
+    await HttpContext.run(hono, async () => {
+      const store = HttpContext.get()
+      expect(store.hono).toHaveProperty('id')
+      HttpContext.assign({ custom: 'value' })
+      expect(HttpContext.get()).toBe(store)
+      HttpContext.setContext(hono)
+      expect(HttpContext.getValue('hono')).toBe(hono)
     })
 
     expect(() => HttpContext.get()).toThrowError(/not available/)
-    expect(() => HttpContext.setContext(createContext())).toThrowError(/Cannot set context/)
+    expect(() => HttpContext.setContext(createContext())).toThrowError(/not available/)
   })
 
   it('creates configurable zod validation pipe for DTOs', () => {
@@ -339,12 +348,15 @@ describe('decorators and helpers', () => {
     const honoContext = createContext()
     const container = {} as any
 
-    const executionContext = createExecutionContext(honoContext, container, DemoController, handler)
+    return HttpContext.run(honoContext, async () => {
+      const executionContext = createExecutionContext(container, DemoController, handler)
 
-    expect(executionContext.getClass()).toBe(DemoController)
-    expect(executionContext.getHandler()).toBe(handler)
-    expect(executionContext.getContext()).toBe(honoContext)
-    expect(executionContext.switchToHttp().getContext()).toBe(honoContext)
+      const store = executionContext.getContext()
+      expect(store.hono).toBe(honoContext)
+      expect(executionContext.getClass()).toBe(DemoController)
+      expect(executionContext.getHandler()).toBe(handler)
+      expect(executionContext.switchToHttp().getContext()).toBe(store)
+    })
   })
 })
 

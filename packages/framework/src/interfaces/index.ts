@@ -1,5 +1,6 @@
-import type { Context } from 'hono'
 import type { DependencyContainer } from 'tsyringe'
+
+import type { HttpContextValues } from '../context/http-context'
 
 export type Constructor<T = any> = new (...args: any[]) => T
 
@@ -49,17 +50,17 @@ export interface ExecutionContext {
   readonly container: DependencyContainer
   getClass: <T = Constructor>() => T
   getHandler: () => Function
-  getContext: <T = Context>() => T
+  getContext: <T = HttpContextValues>() => T
   switchToHttp: () => HttpArgumentsHost
 }
 
 export interface HttpArgumentsHost {
-  getContext: <T = Context>() => T
+  getContext: <T = HttpContextValues>() => T
 }
 
 export interface ArgumentsHost {
   switchToHttp: () => HttpArgumentsHost
-  getContext: <T = Context>() => T
+  getContext: <T = HttpContextValues>() => T
 }
 
 export interface GlobalEnhancerRegistry {

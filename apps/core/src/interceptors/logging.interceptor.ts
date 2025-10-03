@@ -10,8 +10,8 @@ const httpLogger = createLogger('HTTP')
 export class LoggingInterceptor implements NestInterceptor {
   async intercept(context: ExecutionContext, next: CallHandler): Promise<FrameworkResponse> {
     const start = performance.now()
-    const honoContext = context.getContext()
-    const { method, url } = honoContext.req
+    const { hono } = context.getContext()
+    const { method, url } = hono.req
 
     const uri = toUri(url)
     httpLogger.info(['<---', `${method} -> ${uri}`].join(' '))

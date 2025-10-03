@@ -6,8 +6,8 @@ import { injectable } from 'tsyringe'
 @injectable()
 export class ApiKeyGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const honoContext = context.getContext()
-    const apiKey = honoContext.req.header('x-api-key')
+    const { hono } = context.getContext()
+    const apiKey = hono.req.header('x-api-key')
     const expected = env.API_KEY ?? 'secret-key'
 
     if (apiKey !== expected) {

@@ -13,7 +13,6 @@ import {
   UseGuards,
 } from '@hono-template/framework'
 import type { Context } from 'hono'
-import { injectable } from 'tsyringe'
 
 import { ApiKeyGuard } from '../../guards/api-key.guard'
 import { ParseIntPipe } from '../../pipes/parse-int.pipe'
@@ -21,7 +20,6 @@ import { AppService } from './app.service'
 import { CreateMessageDto } from './schemas/message.schema'
 
 @Controller('app')
-@injectable()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
@@ -73,7 +71,7 @@ export class AppController {
 
   @Get('/context-check')
   async checkHttpContext(@ContextParam() context: Context) {
-    const stored = HttpContext.get<Context>()
+    const stored = HttpContext.get().hono
     return {
       same: stored === context,
       path: stored.req.path,
