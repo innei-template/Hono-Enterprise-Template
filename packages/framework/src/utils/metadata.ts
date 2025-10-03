@@ -1,6 +1,6 @@
 import { EXCEPTION_FILTERS_METADATA, GUARDS_METADATA, INTERCEPTORS_METADATA, PIPES_METADATA } from '../constants'
 import { getEnhancerMetadata } from '../decorators/enhancers'
-import type { CanActivate, Constructor, ExceptionFilter, NestInterceptor, PipeTransform } from '../interfaces'
+import type { CanActivate, Constructor, ExceptionFilter, Interceptor, PipeTransform } from '../interfaces'
 
 function collectEnhancers<T>(
   metadataKey: symbol,
@@ -23,7 +23,7 @@ export function collectPipes(controller: Constructor, propertyKey: string | symb
 export function collectInterceptors(
   controller: Constructor,
   propertyKey: string | symbol,
-): Array<Constructor<NestInterceptor>> {
+): Array<Constructor<Interceptor>> {
   return collectEnhancers(INTERCEPTORS_METADATA, controller, propertyKey)
 }
 

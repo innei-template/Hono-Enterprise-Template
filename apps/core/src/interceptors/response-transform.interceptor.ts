@@ -1,5 +1,5 @@
 import { env } from '@hono-template/env'
-import type { CallHandler, ExecutionContext, FrameworkResponse, NestInterceptor } from '@hono-template/framework'
+import type { CallHandler, ExecutionContext, FrameworkResponse, Interceptor } from '@hono-template/framework'
 import { injectable } from 'tsyringe'
 
 import { RESPONSE_TRANSFORM_BYPASS } from './response-transform.decorator'
@@ -88,7 +88,7 @@ function transformKeysToSnakeCase(value: unknown, seen = new WeakMap<object, unk
 }
 
 @injectable()
-export class ResponseTransformInterceptor implements NestInterceptor {
+export class ResponseTransformInterceptor implements Interceptor {
   async intercept(context: ExecutionContext, next: CallHandler): Promise<FrameworkResponse> {
     const handler = context.getHandler()
     const clazz = context.getClass()

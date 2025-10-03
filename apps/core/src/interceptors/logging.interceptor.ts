@@ -1,4 +1,4 @@
-import type { CallHandler, ExecutionContext, FrameworkResponse, NestInterceptor } from '@hono-template/framework'
+import type { CallHandler, ExecutionContext, FrameworkResponse, Interceptor } from '@hono-template/framework'
 import { createLogger } from '@hono-template/framework'
 import { toUri } from 'core/helpers/url.helper'
 import { green } from 'picocolors'
@@ -7,7 +7,7 @@ import { injectable } from 'tsyringe'
 const httpLogger = createLogger('HTTP')
 
 @injectable()
-export class LoggingInterceptor implements NestInterceptor {
+export class LoggingInterceptor implements Interceptor {
   async intercept(context: ExecutionContext, next: CallHandler): Promise<FrameworkResponse> {
     const start = performance.now()
     const { hono } = context.getContext()

@@ -15,7 +15,7 @@ import type {
   ExecutionContext,
   FrameworkResponse,
   HonoHttpApplication,
-  NestInterceptor,
+  Interceptor,
   PipeTransform,
   RouteParamMetadataItem,
 } from '../src'
@@ -175,7 +175,7 @@ class DoublePipe implements PipeTransform<unknown, number> {
 }
 
 @injectable()
-class GlobalInterceptor implements NestInterceptor {
+class GlobalInterceptor implements Interceptor {
   async intercept(context: ExecutionContext, next: CallHandler): Promise<FrameworkResponse> {
     callOrder.push('global-interceptor-before')
     const result = await next.handle()
@@ -185,7 +185,7 @@ class GlobalInterceptor implements NestInterceptor {
 }
 
 @injectable()
-class MethodInterceptor implements NestInterceptor {
+class MethodInterceptor implements Interceptor {
   async intercept(context: ExecutionContext, next: CallHandler): Promise<FrameworkResponse> {
     callOrder.push('method-interceptor-before')
     const result = await next.handle()

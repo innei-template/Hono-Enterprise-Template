@@ -38,7 +38,7 @@ export interface CallHandler<T = unknown> {
   handle: () => Promise<FrameworkResponse<T>>
 }
 
-export interface NestInterceptor<T = unknown> {
+export interface Interceptor<T = unknown> {
   intercept: (context: ExecutionContext, next: CallHandler<T>) => Promise<FrameworkResponse<T>> | FrameworkResponse<T>
 }
 
@@ -86,7 +86,7 @@ export interface OnApplicationShutdown {
 export interface GlobalEnhancerRegistry {
   guards: Array<Constructor<CanActivate>>
   pipes: Array<Constructor<PipeTransform>>
-  interceptors: Array<Constructor<NestInterceptor>>
+  interceptors: Array<Constructor<Interceptor>>
   filters: Array<Constructor<ExceptionFilter>>
 }
 

@@ -22,7 +22,7 @@ import type {
   ExceptionFilter,
   FrameworkResponse,
   GlobalEnhancerRegistry,
-  NestInterceptor,
+  Interceptor,
   OnApplicationBootstrap,
   OnApplicationShutdown,
   OnModuleDestroy,
@@ -257,7 +257,7 @@ export class HonoHttpApplication {
     this.globalEnhancers.pipes.push(...pipes)
   }
 
-  useGlobalInterceptors(...interceptors: Array<Constructor<NestInterceptor>>): void {
+  useGlobalInterceptors(...interceptors: Array<Constructor<Interceptor>>): void {
     this.globalEnhancers.interceptors.push(...interceptors)
   }
 

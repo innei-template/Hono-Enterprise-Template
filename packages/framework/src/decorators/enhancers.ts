@@ -1,7 +1,7 @@
 import 'reflect-metadata'
 
 import { EXCEPTION_FILTERS_METADATA, GUARDS_METADATA, INTERCEPTORS_METADATA, PIPES_METADATA } from '../constants'
-import type { CanActivate, Constructor, ExceptionFilter, NestInterceptor, PipeTransform } from '../interfaces'
+import type { CanActivate, Constructor, ExceptionFilter, Interceptor, PipeTransform } from '../interfaces'
 
 type DecoratorTarget = object
 
@@ -32,7 +32,7 @@ function createEnhancerDecorator<T>(metadataKey: symbol) {
 
 export const UseGuards = createEnhancerDecorator<Constructor<CanActivate>>(GUARDS_METADATA)
 export const UsePipes = createEnhancerDecorator<Constructor<PipeTransform>>(PIPES_METADATA)
-export const UseInterceptors = createEnhancerDecorator<Constructor<NestInterceptor>>(INTERCEPTORS_METADATA)
+export const UseInterceptors = createEnhancerDecorator<Constructor<Interceptor>>(INTERCEPTORS_METADATA)
 export const UseFilters = createEnhancerDecorator<Constructor<ExceptionFilter>>(EXCEPTION_FILTERS_METADATA)
 
 export function getEnhancerMetadata<T>(

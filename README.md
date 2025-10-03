@@ -47,7 +47,7 @@ pnpm -C apps/core test
 pnpm -C apps/core dev
 
 # or run the in-process demo runner
-pnpm -C apps/core demo
+pnpm -C apps/web dev
 ```
 
 Coverage reports are generated at `packages/framework/coverage`.

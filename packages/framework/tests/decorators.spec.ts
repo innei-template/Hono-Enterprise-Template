@@ -41,7 +41,7 @@ import type {
   CallHandler,
   CanActivate,
   ExceptionFilter,
-  NestInterceptor,
+  Interceptor,
   PipeTransform,
 } from '../src/interfaces'
 import { createExecutionContext } from '../src/utils/execution-context'
@@ -73,7 +73,7 @@ class DummyPipe implements PipeTransform<unknown> {
 }
 
 @injectable()
-class DummyInterceptor implements NestInterceptor {
+class DummyInterceptor implements Interceptor {
   async intercept(_context, next: CallHandler): Promise<FrameworkResponse> {
     return next.handle()
   }

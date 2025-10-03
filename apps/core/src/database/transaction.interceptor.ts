@@ -1,4 +1,4 @@
-import type { CallHandler, ExecutionContext, FrameworkResponse, NestInterceptor } from '@hono-template/framework'
+import type { CallHandler, ExecutionContext, FrameworkResponse, Interceptor } from '@hono-template/framework'
 import { createLogger } from '@hono-template/framework'
 import type { PoolClient } from 'pg'
 import { injectable } from 'tsyringe'
@@ -8,7 +8,7 @@ import { getOptionalDbContext, PgPoolProvider, runWithDbContext } from './databa
 const logger = createLogger('DB')
 
 @injectable()
-export class TransactionInterceptor implements NestInterceptor {
+export class TransactionInterceptor implements Interceptor {
   constructor(private readonly poolProvider: PgPoolProvider) {}
 
   async intercept(context: ExecutionContext, next: CallHandler): Promise<FrameworkResponse> {
