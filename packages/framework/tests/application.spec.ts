@@ -634,7 +634,7 @@ describe('HonoHttpApplication end-to-end', () => {
       statusCode: 422,
       message: 'Validation failed',
       errors: {
-        message: [expect.stringContaining('expected string')],
+        message: [expect.stringContaining('message required')],
       },
       meta: {
         target: 'BodyDto',

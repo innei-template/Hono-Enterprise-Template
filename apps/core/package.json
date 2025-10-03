@@ -21,6 +21,7 @@
     "@hono-template/framework": "workspace:*",
     "@hono-template/redis": "workspace:*",
     "@hono-template/task-queue": "workspace:*",
+    "@hono-template/websocket": "workspace:*",
     "@hono/node-server": "^1.13.4",
     "better-auth": "1.3.24",
     "drizzle-orm": "^0.44.6",

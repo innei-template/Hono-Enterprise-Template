@@ -13,7 +13,9 @@
       "core": ["./src"],
       "core/*": ["./src/*"],
       "@hono-template/db": ["../../packages/db/src"],
-      "@hono-template/db/*": ["../../packages/db/src/*"]
+      "@hono-template/db/*": ["../../packages/db/src/*"],
+      "@hono-template/websocket": ["../../packages/websocket/src"],
+      "@hono-template/websocket/*": ["../../packages/websocket/src/*"]
     },
     "resolveJsonModule": true,
     "allowJs": true,

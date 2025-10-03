@@ -23,6 +23,7 @@ A NestJS‑inspired, Hono‑powered enterprise template for building modular, ty
 | `packages/db`              | Drizzle schema & types plus migrations configuration                                     |
 | `packages/env`             | Runtime env validation powered by `@t3-oss/env-core`                                     |
 | `packages/redis`           | Redis client factory (`ioredis`) and strong types                                        |
+| `packages/websocket`       | Redis-backed WebSocket gateway with pub/sub broker, heartbeat management, and logging    |
 
 ## ✅ Requirements
 
@@ -58,6 +59,12 @@ Create a `.env` file at the repo root with at least:
 ```bash
 DATABASE_URL=postgres://user:pass@localhost:5432/db
 REDIS_URL=redis://localhost:6379
+
+# Optional WebSocket gateway configuration
+# WEBSOCKET_ENABLED=true
+# WEBSOCKET_PORT=8081
+# WEBSOCKET_PATH=/ws
+# WEBSOCKET_HEARTBEAT_INTERVAL_MS=30000
 
 # Optional Postgres pool tuning
 PG_POOL_MAX=10
@@ -158,6 +165,10 @@ export class CacheService {
   }
 }
 ```
+
+### 2.6) WebSocket Gateway
+
+The `@hono-template/websocket` package provides a Redis-backed WebSocket gateway with channel subscriptions, Redis pub/sub fan-out, and automatic heartbeat/ping management. The demo app exposes it through `WebSocketDemoModule` (disabled by default). Enable it by setting `WEBSOCKET_ENABLED=true` (and optionally `WEBSOCKET_PORT`, `WEBSOCKET_PATH`) in your environment. The `/api/websocket/info` route reports status, and `/api/websocket/channels/:channel/publish` publishes payloads to connected clients.
 
 ### 3) Result Handling
 

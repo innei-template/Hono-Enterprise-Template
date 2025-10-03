@@ -5,6 +5,7 @@ import { RedisQueueDriver, TaskQueue, TaskQueueManager } from '@hono-template/ta
 import { injectable } from 'tsyringe'
 
 import { RedisAccessor } from '../../redis/redis.provider'
+import { WebSocketPublisherService } from '../websocket/websocket.service'
 import type { EnqueueNotificationInput } from './schemas/enqueue-notification.schema'
 
 const QUEUE_KEY = 'core-notifications'
@@ -38,6 +39,7 @@ export class TaskQueueDemoService {
   constructor(
     private readonly manager: TaskQueueManager,
     private readonly redisAccessor: RedisAccessor,
+    private readonly wsPublisher: WebSocketPublisherService,
   ) {
     const existingQueue = this.manager.getQueue(QUEUE_KEY)
     if (existingQueue) {
@@ -179,11 +181,24 @@ export class TaskQueueDemoService {
       metadata: payload.metadata,
     }
 
-    this.jobs.set(context.taskId, {
+    const finalState: DemoJobState = {
       ...workingState,
       status: 'completed',
       lastUpdatedAt: result.deliveredAt,
       result,
+    }
+
+    this.jobs.set(context.taskId, finalState)
+
+    // Broadcast job completion via WebSocket channel derived from task channel
+    const channel = `queue:${result.channel}`
+    await this.wsPublisher.publish(channel, {
+      type: 'job.completed',
+      id: finalState.id,
+      status: finalState.status,
+      attempts: finalState.attempts,
+      deliveredAt: result.deliveredAt,
+      recipient: payload.recipient,
     })
   }
 }

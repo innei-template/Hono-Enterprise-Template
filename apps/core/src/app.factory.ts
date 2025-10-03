@@ -8,6 +8,7 @@ import { PgPoolProvider } from './database/database.provider'
 import { TransactionInterceptor } from './database/transaction.interceptor'
 import { AllExceptionsFilter } from './filters/all-exceptions.filter'
 import { LoggingInterceptor } from './interceptors/logging.interceptor'
+import { ResponseTransformInterceptor } from './interceptors/response-transform.interceptor'
 import { AppModules } from './modules/index.module'
 import { RedisProvider } from './redis/redis.provider'
 
@@ -33,6 +34,7 @@ export async function createConfiguredApp(options: BootstrapOptions = {}): Promi
 
   app.useGlobalFilters(AllExceptionsFilter)
   app.useGlobalInterceptors(LoggingInterceptor)
+  app.useGlobalInterceptors(ResponseTransformInterceptor)
   app.useGlobalInterceptors(TransactionInterceptor)
   app.useGlobalPipes(GlobalValidationPipe)
 

@@ -36,6 +36,9 @@ export const authUsers = pgTable('auth_user', {
   twoFactorEnabled: boolean('two_factor_enabled').default(false).notNull(),
   username: text('username'),
   displayUsername: text('display_username'),
+  banned: boolean('banned').default(false).notNull(),
+  banReason: text('ban_reason'),
+  banExpires: timestamp('ban_expires_at', { mode: 'string' }),
 })
 
 // Custom sessions table (Better Auth: session)

@@ -25,7 +25,9 @@
       "@hono-template/framework": ["packages/framework/src"],
       "@hono-template/framework/*": ["packages/framework/src/*"],
       "@hono-template/task-queue": ["packages/task-queue/src"],
-      "@hono-template/task-queue/*": ["packages/task-queue/src/*"]
+      "@hono-template/task-queue/*": ["packages/task-queue/src/*"],
+      "@hono-template/websocket": ["packages/websocket/src"],
+      "@hono-template/websocket/*": ["packages/websocket/src/*"]
     }
   }
 }

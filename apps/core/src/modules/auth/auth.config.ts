@@ -33,12 +33,6 @@ export class AuthConfig {
       }
     }
 
-    if (env.ZOOM_CLIENT_ID && env.ZOOM_CLIENT_SECRET) {
-      socialProviders.zoom = {
-        clientId: env.ZOOM_CLIENT_ID,
-        clientSecret: env.ZOOM_CLIENT_SECRET,
-      }
-    }
     return {
       prefix,
       useDrizzle: true,

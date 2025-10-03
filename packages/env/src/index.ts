@@ -7,6 +7,7 @@ export const env = createEnv({
   server: {
     NODE_ENV: z.enum(['development', 'test', 'production']).default(process.env.NODE_ENV as any),
     PORT: z.string().regex(/^\d+$/).transform(Number).default(3000),
+    WS_PORT: z.string().regex(/^\d+$/).transform(Number).default(3001),
     HOSTNAME: z.string().default('0.0.0.0'),
     API_KEY: z.string().min(1).optional(),
     DATABASE_URL: z.url(),
@@ -19,8 +20,9 @@ export const env = createEnv({
     GOOGLE_CLIENT_SECRET: z.string().optional(),
     GITHUB_CLIENT_ID: z.string().optional(),
     GITHUB_CLIENT_SECRET: z.string().optional(),
-    ZOOM_CLIENT_ID: z.string().optional(),
-    ZOOM_CLIENT_SECRET: z.string().optional(),
+
+    // INTERNAL
+    TEST: z.any().default(false),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

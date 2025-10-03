@@ -82,7 +82,7 @@ class DummyInterceptor implements NestInterceptor {
 @injectable()
 class DummyFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
-    return host.getContext().json({ handled: exception instanceof Error })
+    return host.getContext().hono.json({ handled: exception instanceof Error })
   }
 }
 
@@ -221,7 +221,7 @@ describe('decorators and helpers', () => {
   it('creates configurable zod validation pipe for DTOs', () => {
     const schema = z
       .object({
-        name: z.string({ required_error: 'required' }).min(1, 'required'),
+        name: z.string({ message: 'expected string' }).min(1, 'required'),
       })
       .describe('Payload')
 

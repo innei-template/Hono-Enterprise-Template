@@ -1,7 +1,9 @@
 import { authAccounts, authSessions, authUsers } from '@hono-template/db'
+import type { OnModuleInit } from '@hono-template/framework'
 import { createLogger } from '@hono-template/framework'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
+import { admin } from 'better-auth/plugins'
 import type { Context } from 'hono'
 import { injectable } from 'tsyringe'
 
@@ -13,42 +15,44 @@ export type BetterAuthInstance = ReturnType<typeof betterAuth>
 const logger = createLogger('Auth')
 
 @injectable()
-export class AuthProvider {
-  private instance?: BetterAuthInstance
+export class AuthProvider implements OnModuleInit {
+  private instance?: ReturnType<typeof this.createAuth>
 
   constructor(
     private readonly config: AuthConfig,
     private readonly drizzleProvider: DrizzleProvider,
-  ) {
+  ) {}
+
+  onModuleInit(): void {
     this.instance = this.getAuth()
   }
 
-  getAuth(): BetterAuthInstance {
-    if (!this.instance) {
-      const options = this.config.getOptions()
-      const db = this.drizzleProvider.getDb()
-      this.instance = betterAuth({
-        database: drizzleAdapter(db, {
-          provider: 'pg',
-          schema: {
-            user: authUsers,
-            session: authSessions,
-            account: authAccounts,
-          },
-        }),
-        socialProviders: options.socialProviders,
-        emailAndPassword: { enabled: true },
-        user: {
-          // Map model name if needed (we pass schema above). Also add additional fields.
-          additionalFields: {
-            role: {
-              type: 'string',
-              defaultValue: 'user',
-              input: false,
-            },
-          },
+  private createAuth() {
+    const options = this.config.getOptions()
+    const db = this.drizzleProvider.getDb()
+    return betterAuth({
+      database: drizzleAdapter(db, {
+        provider: 'pg',
+        schema: {
+          user: authUsers,
+          session: authSessions,
+          account: authAccounts,
         },
-      })
+      }),
+      socialProviders: options.socialProviders,
+      emailAndPassword: { enabled: true },
+      plugins: [
+        admin({
+          adminRoles: ['admin'],
+          defaultRole: 'user',
+          defaultBanReason: 'Spamming',
+        }),
+      ],
+    })
+  }
+  getAuth() {
+    if (!this.instance) {
+      this.instance = this.createAuth()
       logger.info('Better Auth initialized')
     }
     return this.instance
@@ -59,3 +63,6 @@ export class AuthProvider {
     return auth.handler(context.req.raw)
   }
 }
+
+export type AuthInstance = ReturnType<AuthProvider['createAuth']>
+export type AuthSession = BetterAuthInstance['$Infer']['Session']

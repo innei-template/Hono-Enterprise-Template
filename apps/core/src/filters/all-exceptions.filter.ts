@@ -1,5 +1,6 @@
 import type { ArgumentsHost, ExceptionFilter } from '@hono-template/framework'
 import { createLogger, HttpException } from '@hono-template/framework'
+import { BizException } from 'core/errors'
 import { toUri } from 'core/helpers/url.helper'
 import { injectable } from 'tsyringe'
 
@@ -7,9 +8,28 @@ import { injectable } from 'tsyringe'
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = createLogger('AllExceptionsFilter')
   catch(exception: unknown, host: ArgumentsHost) {
+    if (exception instanceof BizException) {
+      const response = exception.toResponse()
+      return new Response(JSON.stringify(response), {
+        status: exception.getHttpStatus(),
+        headers: {
+          'content-type': 'application/json',
+        },
+      })
+    }
+
     if (exception instanceof HttpException) {
       return new Response(JSON.stringify(exception.getResponse()), {
         status: exception.getStatus(),
+        headers: {
+          'content-type': 'application/json',
+        },
+      })
+    }
+
+    if (typeof exception === 'object' && exception !== null && 'statusCode' in exception) {
+      return new Response(JSON.stringify(exception), {
+        status: exception.statusCode as number,
         headers: {
           'content-type': 'application/json',
         },
