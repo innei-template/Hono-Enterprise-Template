@@ -2,7 +2,7 @@
   "name": "hono-template",
   "type": "module",
   "version": "1.0.0",
-  "packageManager": "pnpm@10.17.1",
+  "packageManager": "pnpm@10.18.0",
   "author": "Innei",
   "license": "MIT",
   "main": "index.js",

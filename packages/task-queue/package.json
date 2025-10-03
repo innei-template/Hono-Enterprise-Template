@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@hono-template/framework": "workspace:*",
-    "tsyringe": "^4.8.0"
+    "tsyringe": "^4.10.0"
   },
   "devDependencies": {
     "@types/node": "^24.6.2",
