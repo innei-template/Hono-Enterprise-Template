@@ -97,6 +97,18 @@ Bootstrapping with `createApplication(RootModule, options)` performs:
 3. Route discovery from class/method decorators and mapping to Hono.
 4. Per-request pipeline: Guards → Pipes (global/method/parameter) → Interceptors → Controller → Filters.
 
+### 1.1) Provider Lifecycle
+
+Providers and controllers may implement lifecycle interfaces inspired by NestJS:
+
+- `OnModuleInit` → `onModuleInit()` after a module and its imports finish registering.
+- `OnApplicationBootstrap` → `onApplicationBootstrap()` after the app finishes initialization.
+- `BeforeApplicationShutdown` → `beforeApplicationShutdown(signal?)` prior to shutdown.
+- `OnModuleDestroy` → `onModuleDestroy()` during teardown.
+- `OnApplicationShutdown` → `onApplicationShutdown(signal?)` as the final shutdown step.
+
+Call `await app.close('SIGTERM')` on the `HonoHttpApplication` instance to trigger shutdown hooks.
+
 ### 2) Enhancers (Guards, Pipes, Interceptors, Filters)
 
 - `@UseGuards(...guards)`: `CanActivate.canActivate(ctx)` returning `boolean | Promise<boolean>`. `false` throws `ForbiddenException`.

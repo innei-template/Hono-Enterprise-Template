@@ -4,7 +4,7 @@ import { ReadableStream } from 'node:stream/web'
 
 import type { Context } from 'hono'
 import { injectable } from 'tsyringe'
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
 import type {
@@ -21,6 +21,7 @@ import type {
 } from '../src'
 import {
   BadRequestException,
+  BeforeApplicationShutdown,
   Body,
   ContextParam,
   Controller,
@@ -32,6 +33,10 @@ import {
   Headers,
   HttpContext,
   Module,
+  OnApplicationBootstrap,
+  OnApplicationShutdown,
+  OnModuleDestroy,
+  OnModuleInit,
   Param,
   Post,
   Query,
@@ -460,6 +465,38 @@ class FactoryController {
 })
 class FactoryModule {}
 
+const lifecycleEvents: string[] = []
+
+@injectable()
+class LifecycleProvider
+  implements OnModuleInit, OnModuleDestroy, OnApplicationBootstrap, BeforeApplicationShutdown, OnApplicationShutdown
+{
+  onModuleInit(): void {
+    lifecycleEvents.push('module:init')
+  }
+
+  onApplicationBootstrap(): void {
+    lifecycleEvents.push('app:bootstrap')
+  }
+
+  beforeApplicationShutdown(signal?: string): void {
+    lifecycleEvents.push(`before:${signal ?? 'none'}`)
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    lifecycleEvents.push('module:destroy')
+  }
+
+  onApplicationShutdown(signal?: string): void {
+    lifecycleEvents.push(`app:shutdown:${signal ?? 'none'}`)
+  }
+}
+
+@Module({
+  providers: [LifecycleProvider],
+})
+class LifecycleModule {}
+
 describe('HonoHttpApplication end-to-end', () => {
   let fetcher: (request: Request) => Promise<Response>
   let app: HonoHttpApplication
@@ -478,6 +515,10 @@ describe('HonoHttpApplication end-to-end', () => {
     app.useGlobalInterceptors(GlobalInterceptor)
     app.useGlobalFilters(GlobalExceptionFilter)
     fetcher = (request) => Promise.resolve(app.getInstance().fetch(request))
+  })
+
+  afterAll(async () => {
+    await app.close('test-suite')
   })
 
   beforeEach(() => {
@@ -820,7 +861,8 @@ describe('HonoHttpApplication logging', () => {
       },
     })
 
-    await createApplication(class {}, { logger })
+    const app = await createApplication(class {}, { logger })
+    await app.close('logger-test')
 
     expect(infoLogs).not.toHaveLength(0)
     infoLogs.forEach((entry) => {
@@ -837,6 +879,8 @@ describe('HonoHttpApplication parameter factories', () => {
 
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('factory-value')
+
+    await app.close('factory-test')
   })
 })
 
@@ -848,6 +892,7 @@ describe('HonoHttpApplication internals', () => {
   it('supports forwardRef module relationships without infinite recursion', async () => {
     const app = await createApplication(ForwardRefLeftModule)
     expect(app.getInstance()).toBeDefined()
+    await app.close('forward-ref')
   })
 
   it('reuses an existing response object without wrapping', async () => {
@@ -865,6 +910,8 @@ describe('HonoHttpApplication internals', () => {
 
     const result = ensureResponse(context, context.res)
     expect(result).toBe(context.res)
+    await app.close('reuse-response')
+    await app.close('reuse-response-again')
   })
 
   it('falls back to context response when payload is undefined', async () => {
@@ -883,6 +930,78 @@ describe('HonoHttpApplication internals', () => {
 
     const result = ensureResponse(context, undefined)
     expect(result).toBe(baseResponse)
+    await app.close('undefined-payload')
+  })
+
+  it('throws a descriptive error when provider token is undefined', async () => {
+    const app = await createApplication(FactoryModule)
+    const getProviderInstance = (
+      app as unknown as {
+        getProviderInstance: (token: Constructor) => unknown
+      }
+    ).getProviderInstance.bind(app)
+
+    expect(() => getProviderInstance(undefined as unknown as Constructor)).toThrowError(
+      /Cannot resolve provider for undefined token/,
+    )
+
+    await app.close('undefined-token')
+  })
+
+  it('preserves token identity when resolution fails for non-constructors', async () => {
+    const app = await createApplication(FactoryModule)
+    const getProviderInstance = (
+      app as unknown as {
+        getProviderInstance: (token: Constructor | string) => unknown
+      }
+    ).getProviderInstance.bind(app)
+
+    expect(() => getProviderInstance('missing-token' as unknown as Constructor)).toThrowError(
+      /Failed to resolve provider missing-token/,
+    )
+
+    await app.close('missing-token-resolution')
+  })
+
+  it('formats anonymous provider names when resolution fails', async () => {
+    const app = await createApplication(FactoryModule)
+    const getProviderInstance = (
+      app as unknown as {
+        getProviderInstance: (token: Constructor) => unknown
+      }
+    ).getProviderInstance.bind(app)
+
+    const Anonymous = class {
+      constructor(private readonly dep: unknown) {}
+    }
+    injectable()(Anonymous)
+    Object.defineProperty(Anonymous, 'name', { value: '', configurable: true })
+
+    expect(() => getProviderInstance(Anonymous as unknown as Constructor)).toThrowError(
+      /Failed to resolve provider class/,
+    )
+
+    await app.close('anonymous-resolution')
+  })
+
+  it('formats token names consistently', async () => {
+    const app = await createApplication(FactoryModule)
+    const formatTokenName = (
+      app as unknown as {
+        formatTokenName: (token: Constructor | string | undefined) => string
+      }
+    ).formatTokenName.bind(app)
+
+    class Named {}
+    const Anonymous = class {}
+    Object.defineProperty(Anonymous, 'name', { value: '', configurable: true })
+
+    expect(formatTokenName(Named as Constructor)).toBe('Named')
+    expect(formatTokenName(Anonymous as Constructor)).toContain('class')
+    expect(formatTokenName('token' as unknown as Constructor)).toBe('token')
+    expect(formatTokenName(undefined as unknown as Constructor)).toBe('AnonymousProvider')
+
+    await app.close('format-token-name')
   })
 
   it('skips duplicate provider registrations', async () => {
@@ -905,6 +1024,7 @@ describe('HonoHttpApplication internals', () => {
     registerSingleton(Anonymous as Constructor)
 
     expect(app.getContainer().isRegistered(Temp as Constructor, true)).toBe(true)
+    await app.close('duplicate-providers')
   })
 
   it('normalizes empty paths to root', async () => {
@@ -916,6 +1036,7 @@ describe('HonoHttpApplication internals', () => {
     ).buildPath.bind(app)
 
     expect(buildPath('', '')).toBe('/')
+    await app.close('normalize-paths')
   })
 
   it('serializes undefined payloads to null json bodies', async () => {
@@ -929,5 +1050,20 @@ describe('HonoHttpApplication internals', () => {
     const response = json({} as Context, undefined, 200)
     expect(response.status).toBe(200)
     expect(await response.json()).toBeNull()
+    await app.close('serialize-null')
+  })
+})
+
+describe('Lifecycle hooks integration', () => {
+  it('invokes lifecycle hooks in expected order', async () => {
+    lifecycleEvents.length = 0
+    const app = await createApplication(LifecycleModule)
+
+    expect(lifecycleEvents).toEqual(['module:init', 'app:bootstrap'])
+
+    lifecycleEvents.length = 0
+    await app.close('SIGTERM')
+
+    expect(lifecycleEvents).toEqual(['before:SIGTERM', 'module:destroy', 'app:shutdown:SIGTERM'])
   })
 })

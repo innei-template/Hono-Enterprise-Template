@@ -15,6 +15,7 @@ import { getRouteArgsMetadata } from './decorators/params'
 import { BadRequestException, ForbiddenException, HttpException } from './http-exception'
 import type {
   ArgumentMetadata,
+  BeforeApplicationShutdown,
   CallHandler,
   CanActivate,
   Constructor,
@@ -22,6 +23,10 @@ import type {
   FrameworkResponse,
   GlobalEnhancerRegistry,
   NestInterceptor,
+  OnApplicationBootstrap,
+  OnApplicationShutdown,
+  OnModuleDestroy,
+  OnModuleInit,
   PipeTransform,
   RouteParamMetadataItem,
 } from './interfaces'
@@ -50,6 +55,38 @@ function createDefaultRegistry(): GlobalEnhancerRegistry {
 
 type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD'
 
+function isOnModuleInitHook(value: unknown): value is OnModuleInit {
+  return typeof value === 'object' && value !== null && typeof (value as OnModuleInit).onModuleInit === 'function'
+}
+
+function isOnModuleDestroyHook(value: unknown): value is OnModuleDestroy {
+  return typeof value === 'object' && value !== null && typeof (value as OnModuleDestroy).onModuleDestroy === 'function'
+}
+
+function isOnApplicationBootstrapHook(value: unknown): value is OnApplicationBootstrap {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as OnApplicationBootstrap).onApplicationBootstrap === 'function'
+  )
+}
+
+function isBeforeApplicationShutdownHook(value: unknown): value is BeforeApplicationShutdown {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as BeforeApplicationShutdown).beforeApplicationShutdown === 'function'
+  )
+}
+
+function isOnApplicationShutdownHook(value: unknown): value is OnApplicationShutdown {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as OnApplicationShutdown).onApplicationShutdown === 'function'
+  )
+}
+
 export class HonoHttpApplication {
   private readonly app = new Hono()
   private readonly container: DependencyContainer
@@ -59,6 +96,15 @@ export class HonoHttpApplication {
   private readonly diLogger: PrettyLogger
   private readonly routerLogger: PrettyLogger
   private readonly moduleName: string
+  private readonly instances = new Map<Constructor, unknown>()
+  private readonly moduleInitCalled = new Set<Constructor>()
+  private readonly moduleDestroyHooks: OnModuleDestroy[] = []
+  private readonly applicationBootstrapHooks: OnApplicationBootstrap[] = []
+  private readonly beforeApplicationShutdownHooks: BeforeApplicationShutdown[] = []
+  private readonly applicationShutdownHooks: OnApplicationShutdown[] = []
+  private applicationBootstrapInvoked = false
+  private isInitialized = false
+  private isClosing = false
 
   constructor(
     private readonly rootModule: Constructor,
@@ -79,6 +125,8 @@ export class HonoHttpApplication {
   async init(): Promise<void> {
     this.logger.info(`Bootstrapping application for module ${this.moduleName}`)
     await this.registerModule(this.rootModule)
+    await this.callApplicationBootstrapHooks()
+    this.isInitialized = true
     this.logger.info(
       `Application initialization complete for module ${this.moduleName}`,
       colors.green(`+${performance.now().toFixed(2)}ms`),
@@ -91,6 +139,75 @@ export class HonoHttpApplication {
 
   getContainer(): DependencyContainer {
     return this.container
+  }
+
+  async close(signal?: string): Promise<void> {
+    if (this.isClosing) {
+      return
+    }
+
+    this.isClosing = true
+    await this.callBeforeApplicationShutdownHooks(signal)
+    await this.callModuleDestroyHooks()
+    await this.callApplicationShutdownHooks(signal)
+  }
+
+  private getProviderInstance<T>(token: Constructor<T>): T {
+    if (!token) {
+      throw new ReferenceError('Cannot resolve provider for undefined token')
+    }
+
+    if (!this.instances.has(token)) {
+      let instance: T
+      try {
+        instance = this.resolveInstance(token)
+      } catch (error) {
+        if (error instanceof Error) {
+          const tokenName = this.formatTokenName(token)
+          error.message = `Failed to resolve provider ${tokenName}: ${error.message}`
+        }
+        throw error
+      }
+      this.instances.set(token, instance)
+      this.registerLifecycleHandlers(instance)
+    }
+
+    return this.instances.get(token) as T
+  }
+
+  private formatTokenName(token: Constructor | InjectionToken<unknown> | undefined): string {
+    if (typeof token === 'function') {
+      if (token.name && token.name.length > 0) {
+        return token.name
+      }
+      return token.toString()
+    }
+
+    return String(token ?? 'AnonymousProvider')
+  }
+
+  private registerLifecycleHandlers(instance: unknown): void {
+    if (isOnModuleDestroyHook(instance)) {
+      this.registerLifecycleInstance(this.moduleDestroyHooks, instance)
+    }
+
+    if (isOnApplicationBootstrapHook(instance)) {
+      this.registerLifecycleInstance(this.applicationBootstrapHooks, instance)
+    }
+
+    if (isBeforeApplicationShutdownHook(instance)) {
+      this.registerLifecycleInstance(this.beforeApplicationShutdownHooks, instance)
+    }
+
+    if (isOnApplicationShutdownHook(instance)) {
+      this.registerLifecycleInstance(this.applicationShutdownHooks, instance)
+    }
+  }
+
+  private registerLifecycleInstance<T>(collection: T[], instance: T): void {
+    if (!collection.includes(instance)) {
+      collection.push(instance)
+    }
   }
 
   private resolveInstance<T>(token: Constructor<T>): T {
@@ -157,6 +274,7 @@ export class HonoHttpApplication {
     this.logger.debug('Registering module', moduleClass.name)
 
     const metadata = getModuleMetadata(moduleClass)
+    const scopedTokens: Constructor[] = []
 
     for (const importedModule of resolveModuleImports(metadata.imports)) {
       await this.registerModule(importedModule)
@@ -164,13 +282,17 @@ export class HonoHttpApplication {
 
     for (const provider of metadata.providers ?? []) {
       this.registerSingleton(provider as Constructor)
+      scopedTokens.push(provider as Constructor)
     }
 
     for (const controller of metadata.controllers ?? []) {
       this.registerSingleton(controller as Constructor)
+      scopedTokens.push(controller as Constructor)
 
       this.registerController(controller)
     }
+
+    await this.invokeModuleInit(scopedTokens)
 
     this.logger.debug(
       'Module registration complete',
@@ -179,8 +301,55 @@ export class HonoHttpApplication {
     )
   }
 
+  private async invokeModuleInit(tokens: Constructor[]): Promise<void> {
+    for (const token of tokens) {
+      if (!token) {
+        continue
+      }
+      if (this.moduleInitCalled.has(token)) {
+        continue
+      }
+
+      const instance = this.getProviderInstance(token)
+      this.moduleInitCalled.add(token)
+
+      if (isOnModuleInitHook(instance)) {
+        await instance.onModuleInit()
+      }
+    }
+  }
+
+  private async callApplicationBootstrapHooks(): Promise<void> {
+    if (this.applicationBootstrapInvoked) {
+      return
+    }
+
+    this.applicationBootstrapInvoked = true
+    for (const instance of this.applicationBootstrapHooks) {
+      await instance.onApplicationBootstrap()
+    }
+  }
+
+  private async callBeforeApplicationShutdownHooks(signal?: string): Promise<void> {
+    for (const instance of [...this.beforeApplicationShutdownHooks].reverse()) {
+      await instance.beforeApplicationShutdown(signal)
+    }
+  }
+
+  private async callModuleDestroyHooks(): Promise<void> {
+    for (const instance of [...this.moduleDestroyHooks].reverse()) {
+      await instance.onModuleDestroy()
+    }
+  }
+
+  private async callApplicationShutdownHooks(signal?: string): Promise<void> {
+    for (const instance of [...this.applicationShutdownHooks].reverse()) {
+      await instance.onApplicationShutdown(signal)
+    }
+  }
+
   private registerController(controller: Constructor): void {
-    const controllerInstance = this.resolveInstance(controller)
+    const controllerInstance = this.getProviderInstance(controller)
     const { prefix } = getControllerMetadata(controller)
     const routes = getRoutesMetadata(controller)
 
@@ -251,7 +420,10 @@ export class HonoHttpApplication {
     const guardCtors = [...this.globalEnhancers.guards, ...collectGuards(controller, handlerName)]
 
     for (const guardCtor of guardCtors) {
-      const guard = this.resolveInstance(guardCtor)
+      if (!guardCtor) {
+        continue
+      }
+      const guard = this.getProviderInstance(guardCtor)
       const canActivate = await guard.canActivate(context)
       if (!canActivate) {
         this.logger.warn(`Guard ${guardCtor.name} blocked ${controller.name}.${String(handlerName)} execution`)
@@ -274,7 +446,10 @@ export class HonoHttpApplication {
       handle: async (): Promise<FrameworkResponse> => this.ensureResponse(honoContext, await finalHandler()),
     }
 
-    const interceptors = interceptorCtors.map((ctor) => this.resolveInstance(ctor)).reverse()
+    const interceptors = interceptorCtors
+      .filter(Boolean)
+      .map((ctor) => this.getProviderInstance(ctor))
+      .reverse()
 
     const dispatch: CallHandler = interceptors.reduce(
       (next, interceptor): CallHandler => ({
@@ -296,7 +471,10 @@ export class HonoHttpApplication {
   ): Promise<Response> {
     const filterCtors = [...this.globalEnhancers.filters, ...collectFilters(controller, handlerName)]
     for (const filterCtor of filterCtors) {
-      const filter = this.resolveInstance(filterCtor)
+      if (!filterCtor) {
+        continue
+      }
+      const filter = this.getProviderInstance(filterCtor)
       const maybeResponse = await filter.catch(error as Error, executionContext)
       if (maybeResponse) {
         return this.ensureResponse(context, maybeResponse)
@@ -376,7 +554,7 @@ export class HonoHttpApplication {
   private getGlobalAndHandlerPipes(controller: Constructor, handlerName: string | symbol): PipeTransform[] {
     const pipeCtors = [...this.globalEnhancers.pipes, ...collectPipes(controller, handlerName)]
 
-    return pipeCtors.map((ctor) => this.resolveInstance(ctor))
+    return pipeCtors.filter(Boolean).map((ctor) => this.getProviderInstance(ctor))
   }
 
   private async resolveArguments(
@@ -513,7 +691,7 @@ export class HonoHttpApplication {
     metadata: RouteParamMetadataItem,
     sharedPipes: PipeTransform[],
   ): Promise<unknown> {
-    const paramPipes = (metadata.pipes || []).map((ctor) => this.resolveInstance(ctor))
+    const paramPipes = (metadata.pipes || []).filter(Boolean).map((ctor) => this.getProviderInstance(ctor))
     const pipes = [...sharedPipes, ...paramPipes]
 
     if (pipes.length === 0) {

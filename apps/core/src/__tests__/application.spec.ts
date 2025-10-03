@@ -1,5 +1,5 @@
 import type { HonoHttpApplication } from '@hono-template/framework'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { createConfiguredApp as createAppFactory } from '../app.factory'
 
@@ -24,6 +24,10 @@ describe('HonoHttpApplication integration', () => {
   beforeAll(async () => {
     app = await createAppFactory()
     fetcher = (request: Request) => Promise.resolve(app.getInstance().fetch(request))
+  })
+
+  afterAll(async () => {
+    await app.close('tests')
   })
 
   const json = async (response: Response) => ({
