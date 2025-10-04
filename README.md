@@ -10,6 +10,7 @@ A NestJS‑inspired, Hono‑powered enterprise template for building modular, ty
 - **Composables (enhancers)**: Guards, Pipes, Interceptors, and Exception Filters with a declarative API.
 - **Zod validation pipe**: metadata-driven DTO validation via `createZodValidationPipe({ ... })` and `@ZodSchema` decorators.
 - **Pretty logger**: Namespaced, colorized output with CI-safe text labels and hierarchical `extend()`.
+- **Task queue decorators**: Register background job handlers with `@TaskProcessor()` and let the queue wire itself up.
 - **First-class testing**: Framework Vitest suite with 100% coverage; demo app covers all enhancer paths.
 - **Infrastructure providers via DI**: Postgres (Drizzle) and Redis (ioredis) wired as modules.
 
@@ -169,6 +170,76 @@ export class CacheService {
 ### 2.6) WebSocket Gateway
 
 The `@hono-template/websocket` package provides a Redis-backed WebSocket gateway with channel subscriptions, Redis pub/sub fan-out, and automatic heartbeat/ping management. The demo app exposes it through `WebSocketDemoModule` (disabled by default). The `/api/websocket/info` route reports status, and `/api/websocket/channels/:channel/publish` publishes payloads to connected clients.
+
+### 2.7) Task Queue with Decorators
+
+The `@hono-template/task-queue` package ships with a decorator-driven registration model so workers only need to annotate their handler methods:
+
+```ts
+import { injectable } from 'tsyringe'
+import { OnModuleDestroy, OnModuleInit } from '@hono-template/framework'
+import { RedisQueueDriver, TaskContext, TaskProcessor, TaskQueue, TaskQueueManager } from '@hono-template/task-queue'
+
+@injectable()
+export class NotificationQueue implements OnModuleInit, OnModuleDestroy {
+  public queue!: TaskQueue
+
+  constructor(
+    private readonly manager: TaskQueueManager,
+    private readonly redis: RedisAccessor,
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    const driver = new RedisQueueDriver({
+      redis: this.redis.get(),
+      queueName: 'core:notifications',
+      visibilityTimeoutMs: 45_000,
+    })
+
+    this.queue = this.manager.createQueue('notifications', {
+      driver,
+      start: false,
+      middlewares: [
+        async (ctx, next) => {
+          ctx.logger.debug('start', { taskId: ctx.taskId })
+          await next()
+        },
+      ],
+    })
+
+    await this.queue.start({ pollIntervalMs: 250 })
+  }
+
+  @TaskProcessor('send-notification', {
+    options: {
+      maxAttempts: 5,
+      retryableFilter: () => true,
+      backoffStrategy: (attempt) => Math.min(30_000, 2 ** attempt * 250),
+    },
+  })
+  async sendNotification(payload: NotificationPayload, context: TaskContext<NotificationPayload>): Promise<void> {
+    // business logic here
+    context.logger.info('Delivered notification', { taskId: context.taskId })
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.queue?.shutdown()
+  }
+}
+```
+
+`@TaskProcessor()` delays registration until `onModuleInit` finishes so that the queue instance is ready, supports alternate queue property names, and accepts per-handler options (or an options factory). Any service can inject the queue to enqueue work:
+
+```ts
+@injectable()
+export class NotificationService {
+  constructor(private readonly worker: NotificationQueue) {}
+
+  async enqueue(payload: NotificationPayload) {
+    return await this.worker.queue.enqueue({ name: 'send-notification', payload })
+  }
+}
+```
 
 ### 3) Result Handling
 

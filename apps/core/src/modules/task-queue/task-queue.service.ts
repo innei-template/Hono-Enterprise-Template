@@ -1,7 +1,7 @@
 import type { PrettyLogger } from '@hono-template/framework'
 import { createLogger } from '@hono-template/framework'
 import type { TaskContext } from '@hono-template/task-queue'
-import { RedisQueueDriver, TaskQueue, TaskQueueManager } from '@hono-template/task-queue'
+import { RedisQueueDriver, TaskProcessor, TaskQueue, TaskQueueManager } from '@hono-template/task-queue'
 import { injectable } from 'tsyringe'
 
 import { RedisAccessor } from '../../redis/redis.provider'
@@ -59,7 +59,6 @@ export class TaskQueueDemoService {
         middlewares: [this.createAuditMiddleware()],
       })
 
-      this.registerHandlers()
       void this.queue.start({ pollIntervalMs: 200 })
       this.logger.info('Redis-backed task queue ready', `queue=${QUEUE_KEY}`)
     }
@@ -119,14 +118,6 @@ export class TaskQueueDemoService {
     }
   }
 
-  private registerHandlers(): void {
-    this.queue.registerHandler('send-notification', this.processNotification.bind(this), {
-      maxAttempts: MAX_ATTEMPTS,
-      retryableFilter: () => true,
-      backoffStrategy: (attempt) => Math.min(30_000, 2 ** attempt * 250),
-    })
-  }
-
   private createAuditMiddleware() {
     return async (context: TaskContext, next: () => Promise<void>) => {
       this.logger.debug('Executing task', `id=${context.taskId}`, `name=${context.name}`)
@@ -135,6 +126,13 @@ export class TaskQueueDemoService {
     }
   }
 
+  @TaskProcessor('send-notification', {
+    options: {
+      maxAttempts: MAX_ATTEMPTS,
+      retryableFilter: () => true,
+      backoffStrategy: (attempt) => Math.min(30_000, 2 ** attempt * 250),
+    },
+  })
   private async processNotification(
     payload: EnqueueNotificationInput,
     context: TaskContext<EnqueueNotificationInput>,

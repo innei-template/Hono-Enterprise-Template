@@ -1082,6 +1082,471 @@ export class BizExceptionFilter implements ExceptionFilter<BizException> {
 }
 ```
 
+### 6. WebSocket Pattern
+
+The `@hono-template/websocket` package provides a Redis-backed WebSocket gateway with channel subscriptions, pub/sub fan-out, and automatic heartbeat management.
+
+**WebSocket Module Setup:**
+
+```typescript
+import { Module } from '@hono-template/framework'
+import { RedisModule } from '../redis/redis.module'
+import { WebSocketGatewayProvider } from './websocket.provider'
+import { WebSocketService } from './websocket.service'
+
+@Module({
+  imports: [RedisModule],
+  providers: [WebSocketGatewayProvider, WebSocketService],
+})
+export class WebSocketModule {}
+```
+
+**WebSocket Gateway Provider:**
+
+```typescript
+import { injectable } from 'tsyringe'
+import { OnModuleInit, OnModuleDestroy, createLogger } from '@hono-template/framework'
+import { RedisPubSubBroker, RedisWebSocketGateway } from '@hono-template/websocket'
+import { RedisAccessor } from '../redis/redis.provider'
+
+@injectable()
+export class WebSocketGatewayProvider implements OnModuleInit, OnModuleDestroy {
+  private gateway?: RedisWebSocketGateway
+  private broker?: RedisPubSubBroker
+  private subscriber?: Redis
+
+  constructor(private readonly redis: RedisAccessor) {}
+
+  async onModuleInit(): Promise<void> {
+    const publisher = this.redis.get()
+    const subscriber = publisher.duplicate()
+
+    this.subscriber = subscriber
+    this.broker = new RedisPubSubBroker({ publisher, subscriber })
+  }
+
+  async attachToHttpServer(server: Server): Promise<void> {
+    if (!this.broker) {
+      throw new Error('Broker not initialized')
+    }
+
+    this.gateway = new RedisWebSocketGateway({
+      broker: this.broker,
+      server,
+      path: '/ws',
+      heartbeatIntervalMs: 30000,
+      allowClientPublish: false, // Disable client-initiated publish
+      handshakeValidator: async (request) => {
+        // Validate auth token from query params or headers
+        const token = new URL(request.url!, 'http://localhost').searchParams.get('token')
+        if (!token) {
+          throw new Error('Missing authentication token')
+        }
+        // Validate token here
+      },
+      identifyClient: async (request) => {
+        // Return unique client identifier
+        return extractUserIdFromRequest(request)
+      },
+    })
+
+    await this.gateway.start()
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.gateway?.stop()
+    await this.subscriber?.quit()
+  }
+
+  getGateway(): RedisWebSocketGateway {
+    if (!this.gateway) {
+      throw new Error('Gateway not initialized')
+    }
+    return this.gateway
+  }
+}
+```
+
+**WebSocket Service:**
+
+```typescript
+@injectable()
+export class WebSocketService {
+  constructor(private readonly gatewayProvider: WebSocketGatewayProvider) {}
+
+  async publishToChannel<T>(channel: string, payload: T): Promise<void> {
+    const gateway = this.gatewayProvider.getGateway()
+    await gateway.publish({ channel, payload })
+  }
+
+  async notifyUser(userId: string, notification: Notification): Promise<void> {
+    await this.publishToChannel(`user:${userId}`, {
+      type: 'notification',
+      data: notification,
+    })
+  }
+
+  async broadcastToAll(message: string): Promise<void> {
+    await this.publishToChannel('broadcast', {
+      type: 'announcement',
+      message,
+    })
+  }
+}
+```
+
+**Bootstrap with WebSocket:**
+
+```typescript
+import { serve } from '@hono/node-server'
+import { createApplication } from '@hono-template/framework'
+
+async function bootstrap() {
+  const app = await createApplication(AppModule)
+  const hono = app.getInstance()
+
+  const server = serve({ fetch: hono.fetch, port: 3000 })
+
+  // Attach WebSocket gateway to HTTP server
+  const container = app.getContainer()
+  const wsProvider = container.resolve(WebSocketGatewayProvider)
+  await wsProvider.attachToHttpServer(server)
+}
+
+bootstrap()
+```
+
+**Client-Side Usage:**
+
+```typescript
+// Connect to WebSocket
+const ws = new WebSocket('ws://localhost:3000/ws?token=YOUR_TOKEN')
+
+ws.onopen = () => {
+  // Subscribe to channels
+  ws.send(
+    JSON.stringify({
+      type: 'subscribe',
+      channels: ['user:123', 'broadcast'],
+    }),
+  )
+}
+
+ws.onmessage = (event) => {
+  const message = JSON.parse(event.data)
+
+  switch (message.type) {
+    case 'ack':
+      console.log('Subscribed to:', message.channels)
+      break
+    case 'message':
+      console.log('Received:', message.channel, message.payload)
+      break
+    case 'error':
+      console.error('Error:', message.code, message.message)
+      break
+  }
+}
+
+// Unsubscribe from channels
+ws.send(
+  JSON.stringify({
+    type: 'unsubscribe',
+    channels: ['broadcast'],
+  }),
+)
+
+// Ping-pong for keepalive
+ws.send(JSON.stringify({ type: 'ping' }))
+```
+
+**Key Points:**
+
+- **Redis Pub/Sub**: Uses Redis for message distribution across multiple server instances
+- **Channel Subscriptions**: Clients subscribe to channels and receive real-time updates
+- **Automatic Heartbeat**: Built-in ping/pong mechanism for connection health
+- **Handshake Validation**: Validate authentication before accepting connections
+- **Client Identification**: Custom logic to identify connected clients
+- **Server-Side Publish**: Services can publish messages through the gateway
+
+### 7. Task Queue Pattern
+
+The `@hono-template/task-queue` package provides a robust task queue system with support for retries, priority, delayed execution, and middleware.
+
+**Task Queue Module Setup:**
+
+```typescript
+import { Module } from '@hono-template/framework'
+import { TaskQueueModule } from '@hono-template/task-queue'
+import { TaskQueueManager } from './task-queue.manager'
+import { TaskQueueService } from './task-queue.service'
+import { TaskQueueController } from './task-queue.controller'
+
+@Module({
+  imports: [TaskQueueModule],
+  controllers: [TaskQueueController],
+  providers: [TaskQueueManager, TaskQueueService],
+})
+export class QueueModule {}
+```
+
+**Task Queue Worker with Decorators:**
+
+```typescript
+import { injectable } from 'tsyringe'
+import { OnModuleDestroy, OnModuleInit, createLogger } from '@hono-template/framework'
+import { RedisQueueDriver, TaskContext, TaskProcessor, TaskQueue, TaskQueueManager } from '@hono-template/task-queue'
+import { RedisAccessor } from '../redis/redis.provider'
+
+@injectable()
+export class TaskQueueWorker implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = createLogger('Tasks:worker')
+  public queue!: TaskQueue
+
+  constructor(
+    private readonly manager: TaskQueueManager,
+    private readonly redis: RedisAccessor,
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    const driver = new RedisQueueDriver({
+      redis: this.redis.get(),
+      queueName: 'core:jobs',
+      visibilityTimeoutMs: 45_000,
+    })
+
+    this.queue = this.manager.createQueue('core-jobs', {
+      driver,
+      start: false,
+      logger: this.logger,
+      middlewares: [
+        async (context, next) => {
+          this.logger.debug('Task started', { taskId: context.taskId, name: context.name })
+          const start = Date.now()
+          try {
+            await next()
+          } finally {
+            this.logger.debug('Task finished', {
+              taskId: context.taskId,
+              name: context.name,
+              duration: Date.now() - start,
+            })
+          }
+        },
+      ],
+    })
+
+    await this.queue.start({ pollIntervalMs: 200 })
+  }
+
+  @TaskProcessor('send-email', {
+    options: {
+      maxAttempts: 3,
+      backoffStrategy: (attempt) => Math.min(60_000, 2 ** attempt * 1_000),
+      retryableFilter: (error) => error instanceof NetworkError,
+    },
+  })
+  async sendEmail(payload: EmailPayload, context: TaskContext<EmailPayload>): Promise<void> {
+    context.logger.info('Sending email', { to: payload.to })
+    await sendEmail(payload)
+  }
+
+  @TaskProcessor('process-image', {
+    options: (instance) => ({
+      maxAttempts: 5,
+      backoffStrategy: (attempt) => attempt * 5_000,
+    }),
+  })
+  async processImage(payload: ImagePayload, context: TaskContext<ImagePayload>): Promise<ImageResult> {
+    context.logger.info('Processing image', { imageId: payload.imageId })
+    return await processImage(payload)
+  }
+
+  @TaskProcessor({ name: 'deliver-webhook', queueProperty: 'queue' })
+  async deliverWebhook(payload: WebhookPayload, context: TaskContext<WebhookPayload>): Promise<void> {
+    try {
+      await fetch(payload.url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload.data),
+      })
+    } catch (error: any) {
+      if (error?.status === 429) {
+        context.setRetry({ retry: true, delayMs: 60_000 })
+      }
+      throw error
+    }
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.queue?.shutdown()
+  }
+}
+```
+
+Handlers are bound automatically after `onModuleInit` finishes, so as long as the queue property is set before the method resolves, the decorator wires everything up. Options may be an object or a factory that receives the instance (helpful for per-environment tuning).
+
+**Task Queue Service:**
+
+```typescript
+@injectable()
+export class TaskQueueService {
+  constructor(private readonly worker: TaskQueueWorker) {}
+
+  async enqueueEmail(email: EmailPayload): Promise<string> {
+    const task = await this.worker.queue.enqueue({
+      name: 'send-email',
+      payload: email,
+      priority: 5,
+    })
+
+    return task.id
+  }
+
+  async enqueueDelayedTask(payload: unknown, delayMs: number): Promise<string> {
+    const task = await this.worker.queue.enqueue({
+      name: 'deliver-webhook',
+      payload,
+      runAt: Date.now() + delayMs,
+      priority: 0,
+    })
+
+    return task.id
+  }
+
+  async enqueueBatch(emails: EmailPayload[]): Promise<string[]> {
+    return await Promise.all(emails.map((email) => this.enqueueEmail(email)))
+  }
+
+  async getQueueStats() {
+    return await this.worker.queue.getStats()
+  }
+}
+```
+
+**Task Queue Controller:**
+
+```typescript
+@Controller('queue')
+export class TaskQueueController {
+  constructor(private readonly queueService: TaskQueueService) {}
+
+  @Post('/tasks/email')
+  async enqueueEmail(@Body() dto: EmailDto) {
+    const taskId = await this.queueService.enqueueEmail({
+      to: dto.to,
+      subject: dto.subject,
+      body: dto.body,
+    })
+
+    return {
+      taskId,
+      status: 'queued',
+      message: 'Email task enqueued successfully',
+    }
+  }
+
+  @Post('/tasks/delayed')
+  async enqueueDelayed(@Body() dto: { payload: unknown; delaySeconds: number }) {
+    const taskId = await this.queueService.enqueueDelayedTask(dto.payload, dto.delaySeconds * 1000)
+
+    return {
+      taskId,
+      status: 'scheduled',
+      scheduledFor: new Date(Date.now() + dto.delaySeconds * 1000),
+    }
+  }
+
+  @Get('/stats')
+  async getStats() {
+    return await this.queueService.getQueueStats()
+  }
+}
+```
+
+**Advanced Task Handler with Custom Retry:**
+
+```typescript
+@TaskProcessor('complex-task', {
+  options: {
+    maxAttempts: 5,
+    backoffStrategy: (attempt) => {
+      const base = 2 ** attempt * 1_000
+      const jitter = Math.random() * 1_000
+      return Math.min(300_000, base + jitter)
+    },
+  },
+})
+async complexTaskHandler(payload: ComplexPayload, context: TaskContext<ComplexPayload>): Promise<void> {
+  try {
+    await performComplexOperation(payload)
+  } catch (error) {
+    if (error instanceof TemporaryError) {
+      context.setRetry({ retry: true, delayMs: 30_000 })
+      throw error
+    }
+
+    if (error instanceof PermanentError) {
+      throw new TaskDropError('Permanent failure, cannot retry')
+    }
+
+    throw error
+  }
+}
+```
+
+**Task Middleware:**
+
+```typescript
+// Logging middleware
+const loggingMiddleware: TaskMiddleware = async (context, next) => {
+  console.log(`[${context.name}] Starting task ${context.taskId}`)
+  const start = Date.now()
+
+  try {
+    await next()
+    console.log(`[${context.name}] Completed in ${Date.now() - start}ms`)
+  } catch (error) {
+    console.error(`[${context.name}] Failed:`, error)
+    throw error
+  }
+}
+
+// Metrics middleware
+const metricsMiddleware: TaskMiddleware = async (context, next) => {
+  const labels = { taskName: context.name }
+  tasksTotal.inc(labels)
+
+  const timer = tasksLatency.startTimer(labels)
+  try {
+    await next()
+    tasksSuccess.inc(labels)
+  } catch (error) {
+    tasksFailure.inc(labels)
+    throw error
+  } finally {
+    timer()
+  }
+}
+
+// Apply middlewares
+const queue = new TaskQueue({
+  name: 'main',
+  middlewares: [loggingMiddleware, metricsMiddleware],
+})
+```
+
+**Key Points:**
+
+- **Task Processors**: Annotate methods with `@TaskProcessor()`; registration runs automatically after `onModuleInit`
+- **Priority Queue**: Tasks with higher priority are processed first
+- **Delayed Execution**: Schedule tasks to run at a specific time
+- **Retry Strategies**: Exponential backoff, linear backoff, custom logic via handler options or `context.setRetry`
+- **Middleware**: Add cross-cutting concerns like logging, metrics, tracing
+- **Driver Support**: In-memory driver for development, Redis driver for production
+- **Visibility Timeout**: Prevents tasks from being processed by multiple workers
+- **Graceful Shutdown**: Stop processing and wait for in-flight tasks to complete
+
 ## Testing Strategy
 
 ### Framework Testing
