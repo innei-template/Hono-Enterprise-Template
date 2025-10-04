@@ -168,7 +168,7 @@ export class CacheService {
 
 ### 2.6) WebSocket Gateway
 
-The `@hono-template/websocket` package provides a Redis-backed WebSocket gateway with channel subscriptions, Redis pub/sub fan-out, and automatic heartbeat/ping management. The demo app exposes it through `WebSocketDemoModule` (disabled by default). Enable it by setting `WEBSOCKET_ENABLED=true` (and optionally `WEBSOCKET_PORT`, `WEBSOCKET_PATH`) in your environment. The `/api/websocket/info` route reports status, and `/api/websocket/channels/:channel/publish` publishes payloads to connected clients.
+The `@hono-template/websocket` package provides a Redis-backed WebSocket gateway with channel subscriptions, Redis pub/sub fan-out, and automatic heartbeat/ping management. The demo app exposes it through `WebSocketDemoModule` (disabled by default). The `/api/websocket/info` route reports status, and `/api/websocket/channels/:channel/publish` publishes payloads to connected clients.
 
 ### 3) Result Handling
 
