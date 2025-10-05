@@ -1547,6 +1547,15 @@ const queue = new TaskQueue({
 - **Visibility Timeout**: Prevents tasks from being processed by multiple workers
 - **Graceful Shutdown**: Stop processing and wait for in-flight tasks to complete
 
+### 8. OpenAPI & Scalar Docs
+
+Generate synchronized documentation from the existing decorator metadata and surface it through a hosted Scalar UI.
+
+- **Two-dimensional tagging**: Operations carry module-path and controller tags (e.g. `Root / User`, `User`) so clients can cluster endpoints by feature.
+- **Schema reuse**: DTO Zod definitions become reusable components referenced by parameters and request bodies.
+- **Interactive docs**: The Scalar embed mirrors their recommended CDN usage, so no bundler work is required.
+- **Customization**: Use `@ApiTags('Admin')` on controllers or handlers to add business-facing groupings, and `@ApiDoc({ summary, deprecated, tags })` to tweak individual operations inline.
+
 ## Testing Strategy
 
 ### Framework Testing

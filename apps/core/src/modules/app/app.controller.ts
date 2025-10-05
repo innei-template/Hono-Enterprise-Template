@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 
 import {
+  ApiDoc,
+  ApiTags,
   Body,
   ContextParam,
   Controller,
@@ -20,6 +22,7 @@ import { AppService } from './app.service'
 import { CreateMessageDto } from './schemas/message.schema'
 
 @Controller('app')
+@ApiTags('AppTesting')
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
@@ -43,6 +46,7 @@ export class AppController {
   }
 
   @Post('/messages/:id')
+  @ApiDoc({ tags: ['AppMessage'] })
   async createMessage(
     @Param('id', ParseIntPipe) id: number,
     @Body() payload: CreateMessageDto,

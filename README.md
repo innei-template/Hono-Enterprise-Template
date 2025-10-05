@@ -11,6 +11,7 @@ A NestJS‑inspired, Hono‑powered enterprise template for building modular, ty
 - **Zod validation pipe**: metadata-driven DTO validation via `createZodValidationPipe({ ... })` and `@ZodSchema` decorators.
 - **Pretty logger**: Namespaced, colorized output with CI-safe text labels and hierarchical `extend()`.
 - **Task queue decorators**: Register background job handlers with `@TaskProcessor()` and let the queue wire itself up.
+- **OpenAPI explorer**: Generate OpenAPI 3.1 docs from decorators and serve them through Scalar.
 - **First-class testing**: Framework Vitest suite with 100% coverage; demo app covers all enhancer paths.
 - **Infrastructure providers via DI**: Postgres (Drizzle) and Redis (ioredis) wired as modules.
 
@@ -240,6 +241,37 @@ export class NotificationService {
   }
 }
 ```
+
+### 2.8) OpenAPI & Interactive Docs
+
+The framework can build an OpenAPI 3.1 document directly from module and controller decorators and expose it alongside a Scalar-powered UI.
+
+```ts
+import type { Hono } from 'hono'
+import { ApiDoc, ApiTags, createOpenApiDocument } from '@hono-template/framework'
+
+import { AppModules } from './modules/index.module'
+
+function registerDocs(app: Hono, prefix = '/api') {
+  const document = createOpenApiDocument(AppModules, {
+    title: 'Core Service API',
+    version: '1.0.0',
+    description: 'Decorator-generated OpenAPI spec',
+    globalPrefix: prefix,
+    servers: [{ url: prefix }],
+  })
+
+  const specPath = `${prefix}/openapi.json`
+  const docsPath = `${prefix}/docs`
+
+  app.get(specPath, (ctx) => ctx.json(document))
+  app.get(docsPath, (ctx) => ctx.html(renderScalarHtml(specPath)))
+}
+```
+
+`createOpenApiDocument()` groups operations by module and controller, providing consistent tags for consumers, while the Scalar embed above mirrors the recommended CDN integration.
+
+Decorate controllers or individual handlers with `@ApiTags()` to introduce domain-specific groupings, and use `@ApiDoc({ summary, tags, deprecated, ... })` to fine-tune operation metadata without leaving your code.
 
 ### 3) Result Handling
 

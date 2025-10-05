@@ -10,6 +10,7 @@ import { AllExceptionsFilter } from './filters/all-exceptions.filter'
 import { LoggingInterceptor } from './interceptors/logging.interceptor'
 import { ResponseTransformInterceptor } from './interceptors/response-transform.interceptor'
 import { AppModules } from './modules/index.module'
+import { registerOpenApiRoutes } from './openapi'
 import { RedisProvider } from './redis/redis.provider'
 
 export interface BootstrapOptions {
@@ -46,6 +47,11 @@ export async function createConfiguredApp(options: BootstrapOptions = {}): Promi
   // Warm up Redis connection during bootstrap
   const redisProvider = container.resolve(RedisProvider)
   await redisProvider.warmup()
+
+  const hono = app.getInstance()
+  registerOpenApiRoutes(hono, {
+    globalPrefix: options.globalPrefix ?? '/api',
+  })
 
   return app
 }
